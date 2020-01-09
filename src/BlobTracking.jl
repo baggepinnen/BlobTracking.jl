@@ -37,7 +37,7 @@ threshold!(storage, img, th) = storage .= Gray.(Gray.(img) .< th)
 function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
     img = first(vid)
     storage = Gray.(img)
-    apply_mask!(storage,bt,img)
+    prepare_image!(storage,bt,img)
     coordinates = detect_blobs!(storage, bt, img)
     active = Blob.(coordinates)
     dead = similar(active,0)
@@ -46,7 +46,7 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
 
     for (ind,img) in enumerate(vid)
         println("Frame $ind")
-        apply_mask!(storage,bt,img)
+        prepare_image!(storage,bt,img)
         coordinates = detect_blobs!(storage, bt, img)
         DM = [dist(b,c) for b in active, c in coordinates]
         DM[DM .> DIST_TH] .= 10000
