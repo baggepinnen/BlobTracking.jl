@@ -1,10 +1,14 @@
 module BlobTracking
+
+using Statistics, LinearAlgebra
 using Images, ImageFiltering, ImageDraw, VideoIO
-using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact
+using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, MultivariateStats
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes, FrameBuffer, MedianBackground, PCABackground
 
 
+include("framebuffer.jl")
+include("background.jl")
 include("blob.jl")
 include("display.jl")
 
@@ -29,16 +33,7 @@ end
 threshold(th::Number) =  (storage, img) -> threshold!(storage, img, th)
 threshold!(storage, img, th) = storage .= Gray.(Gray.(img) .< th)
 
-Base.@kwdef mutable struct BlobTracker
-    σw = 15.0
-    σe = 5.0
-    dist_th = 20
-    amplitude_th = 0.0001
-    kill_counter_th::Int = 10
-    sizes
-    preprocessor = threshold(0.35)
-    distance::Type{<:PreMetric} = Mahalanobis
-end
+
 
 
 
@@ -104,5 +99,7 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
     end
     active, dead
 end
+
+
 
 end # module

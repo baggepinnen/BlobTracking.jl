@@ -1,3 +1,19 @@
+Base.@kwdef mutable struct Blob
+    kf
+    counter::Int = 0
+end
+
+Base.@kwdef mutable struct BlobTracker
+    σw = 15.0
+    σe = 5.0
+    dist_th = 20
+    amplitude_th = 0.0001
+    kill_counter_th::Int = 10
+    sizes
+    preprocessor = threshold(0.35)
+    distance::Type{<:PreMetric} = Mahalanobis
+end
+
 dt = 1
 A = @SMatrix [1. 0 dt 0; 0 1 0 dt; 0 0 1 0; 0 0 0 1] #state update matrice
 B = @SVector [(dt^2/2), (dt^2/2), dt, dt]
@@ -12,10 +28,7 @@ Rw(σw) =  [dt^4/4 0 dt^3/2 0;
 Re(bt::BlobTracker) = Re(bt.σe)
 Rw(bt::BlobTracker) = Rw(bt.σw)
 
-Base.@kwdef mutable struct Blob
-    kf
-    counter::Int = 0
-end
+
 
 function Blob(bt::BlobTracker,coord::CartesianIndex)
     kf = KalmanFilter(A,B,C,0,Rw(bt),Re(bt),MvNormal(10Rw(bt)))

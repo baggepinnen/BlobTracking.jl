@@ -5,6 +5,6 @@
 
 *Work in progress*
 
-Detect and track blobs (like birds or bugs) moving around in an image. Blobs are detected using simple Laplacian-of-Gaussian filtering (from [Images.jl](https://github.com/JuliaImages/Images.jl)) and tracked using a Kalman filter from [LowLevelParticleFilters.jl](https://github.com/baggepinnen/LowLevelParticleFilters.jl).
+Detect and track blobs (like birds or bugs) moving around in an image. Blobs are detected using simple [Laplacian-of-Gaussian filtering](https://en.wikipedia.org/wiki/Blob_detection) (from [Images.jl](https://juliaimages.org/latest/function_reference/#Images.blob_LoG)) and tracked using a Kalman filter from [LowLevelParticleFilters.jl](https://github.com/baggepinnen/LowLevelParticleFilters.jl).
 
 This package contains some facilities for the afromentioned detection and tracking, as well as some utilities for background removal etc.
