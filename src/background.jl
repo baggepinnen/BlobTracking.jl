@@ -3,6 +3,8 @@ abstract type BackgroundExtractor end
 background(be::BackgroundExtractor, img; normalize=false) = imadjustintensity(background(be, img))
 foreground(be::BackgroundExtractor, img; normalize=false) = imadjustintensity(foreground(be, img))
 
+LowLevelParticleFilters.update!(be::BackgroundExtractor, img) = push!(be.fb, img)
+
 struct MedianBackground{T} <: BackgroundExtractor
     fb::FrameBuffer{T}
 end

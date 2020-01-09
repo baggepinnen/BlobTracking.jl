@@ -12,6 +12,7 @@ Base.@kwdef mutable struct BlobTracker
     sizes
     preprocessor = threshold(0.35)
     distance::Type{<:PreMetric} = Mahalanobis
+    mask = nothing
 end
 
 dt = 1
@@ -45,19 +46,33 @@ end
 
 too_far(blob,coord) = dist(blob, coord) > DIST_TH
 
-detect_blobs(bt::BlobTracker, img;kwargs...) = detect_blobs!(Gray.(img), bt::BlobTracker, img)
+
 
 function detect_blobs!(storage, bt::BlobTracker, img)
-    bt.preprocessor(storage, img)
+    prepare_image!(storage, bt, img)
     blobs = blob_LoG(storage,sizes)
     blobs = filter!(x->x.amplitude > amplitude_th, blobs)
     [b.location for b in blobs]
 end
 
-function tune_sizes(bt::BlobTracker, img)
-    storage = Gray.(img)
-    bt.preprocessor(storage, img)
+function tune_sizes!(storage, bt::BlobTracker, img)
+    prepare_image!(storage, bt, img)
     @manipulate for k = 1:100
         imadjustintensity(imfilter(storage, Kernel.LoG(k)))
     end
+end
+
+function prepare_image!(storage, bt, img)
+    apply_mask!(storage,bt,img)
+    bt.preprocessor(storage, img)
+end
+
+function apply_mask!(storage,bt,img)
+    bt.mask === nothing && return img
+    return storage .= bt.mask .* img
+end
+
+for f in (:detect_blobs, :tune_sizes, :prepare_image, :apply_mask)
+    fb = Symbol(f, :!)
+    @eval $f(bt::BlobTracker, img) = $fb(Gray.(img), bt, img)
 end

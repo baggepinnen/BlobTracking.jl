@@ -3,7 +3,9 @@ mutable struct FrameBuffer{T}
     c::Int
     full::Bool
     function FrameBuffer(img::Matrix, n)
-        new{eltype(img)}(similar(img, size(img)..., n), 0, false)
+        fb = new{eltype(img)}(similar(img, size(img)..., n), 0, false)
+        push!(fb, img)
+        fb
     end
     function FrameBuffer{T}(w::Int,h::Int,d::Int) where T
         new{T}(Array{T,3}(undef,w,h,d), 0, false)
@@ -39,5 +41,11 @@ end
 for f in (median, mean, sum, std, var, reshape, size)
     m = parentmodule(f)
     fs = nameof(f)
-    @eval $m.$fs(b::FrameBuffer, args...) = $fs(b.b, args..., dims=3)
+    @eval function $m.$fs(b::FrameBuffer, args...)
+        if b.full
+            return dropdims($fs(b.b, args..., dims=3), dims=3)
+        else
+            return dropdims($fs(@view(b.b[:,:,1:b.c]), args..., dims=3), dims=3)
+        end
+    end
 end

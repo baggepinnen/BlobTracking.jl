@@ -4,7 +4,8 @@ using Statistics, LinearAlgebra
 using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, MultivariateStats
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes, FrameBuffer, MedianBackground, PCABackground
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!
+
 
 
 include("framebuffer.jl")
@@ -15,8 +16,6 @@ include("display.jl")
 @inline to_static(a::Number) = a
 @inline to_static(a::AbstractMatrix) = SMatrix{size(a)...}(a)
 @inline to_static(a::AbstractVector) = SVector{length(a)}(a)
-
-
 
 
 
@@ -35,11 +34,10 @@ threshold!(storage, img, th) = storage .= Gray.(Gray.(img) .< th)
 
 
 
-
-
 function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
     img = first(vid)
     storage = Gray.(img)
+    apply_mask!(storage,bt,img)
     coordinates = detect_blobs!(storage, bt, img)
     active = Blob.(coordinates)
     dead = similar(active,0)
@@ -48,7 +46,7 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
 
     for (ind,img) in enumerate(vid)
         println("Frame $ind")
-        read!(vid,img)
+        apply_mask!(storage,bt,img)
         coordinates = detect_blobs!(storage, bt, img)
         DM = [dist(b,c) for b in active, c in coordinates]
         DM[DM .> DIST_TH] .= 10000
