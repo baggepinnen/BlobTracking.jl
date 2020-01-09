@@ -7,9 +7,10 @@ using Test, Statistics
         @info "Testing FrameBuffer"
         b = FrameBuffer{Float64}(2,2,2)
         push!(b, randn(2,2))
+        push!(b, randn(2,2))
 
         for f in (median, mean, sum, std, var)
-            @test f(b) == f(b.b, dims=3)
+            @test f(b) == f(b.b[:,:,1:2], dims=3)[:,:,1]
         end
 
     end

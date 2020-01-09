@@ -14,7 +14,7 @@ This package contains some facilities for the afromentioned detection and tracki
 ## Usage
 Something like this:
 ```julia
-using BlobTracking, Images
+using BlobTracking, Images, VideoIO
 path = "/home/fredrikb/Video/2_small.MP4"
 io   = VideoIO.open(path)
 vid  = VideoIO.openvideo(io)

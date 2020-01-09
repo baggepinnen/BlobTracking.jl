@@ -22,17 +22,28 @@ function Base.push!(b::FrameBuffer, img)
     b.b[:,:,b.c] .= img
 end
 
-Base.@propagate_inbounds Base.getindex(b::FrameBuffer, i::Int) = @view b.b[:,:,i]
+Base.@propagate_inbounds function Base.getindex(b::FrameBuffer, i::Int)
+    Base.@boundscheck if !b.full && i > b.c
+        throw(BoundsError(b,i))
+    end
+    @view b.b[:,:,i]
+end
 
-Base.@propagate_inbounds Base.getindex(b::FrameBuffer, i,j,k) = b.b[i,j,k]
+Base.@propagate_inbounds function  Base.getindex(b::FrameBuffer, i,j,k)
+    Base.@boundscheck if !b.full && i > b.c
+        throw(BoundsError(b,i))
+    end
+    b.b[i,j,k]
+end
 
 Base.Matrix(b::FrameBuffer) = reshape(b.b, :, length(b))
-Base.length(b::FrameBuffer) = size(b.b, 3)
+Base.length(b::FrameBuffer) = b.full ? size(b.b, 3) : b.c
 imgsize(b::FrameBuffer) = (size(b.b,1),size(b.b,2))
 
 Base.isready(b::FrameBuffer) = b.c > 0
 function Base.iterate(b::FrameBuffer, state=1)
-    state > length(b) && return nothing
+    b.full && state > length(b) && return nothing
+    !b.full && state > b.c && return nothing
     (b[state],state+1)
 end
 
