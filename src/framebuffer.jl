@@ -53,7 +53,7 @@ end
 for f in (median, mean, sum, std, var, reshape, size)
     m = parentmodule(f)
     fs = nameof(f)
-    @eval function $m.$fs(b::FrameBuffer, args...)
+    @eval function $m.$fs(b::FrameBuffer{T}, args...)::Matrix{T} where T
         if b.full
             return dropdims($fs(b.b, args..., dims=3), dims=3)
         else

@@ -5,15 +5,15 @@ using Test, Statistics, ImageDraw, Images
 
 @testset "BlobTracking.jl" begin
 
-    img = Gray.(ones(100,100))
+    img = Gray.(zeros(100,100))
     locs = [CartesianIndex(10,10), CartesianIndex(30,30)]
-    drawblob!(img,locs[1], c=Gray(0.0))
-    drawblob!(img,locs[2], c=Gray(0.0))
+    drawblob!(img,locs[1], c=Gray(1.0))
+    drawblob!(img,locs[2], c=Gray(1.0))
 
-    img2 = Gray.(ones(100,100))
+    img2 = Gray.(zeros(100,100))
     locs2 = [CartesianIndex(12,12), CartesianIndex(32,32)]
-    drawblob!(img2,locs2[1], c=Gray(0.0))
-    drawblob!(img2,locs2[2], c=Gray(0.0))
+    drawblob!(img2,locs2[1], c=Gray(1.0))
+    drawblob!(img2,locs2[2], c=Gray(1.0))
 
     @testset "FrameBuffer" begin
         @info "Testing FrameBuffer"
@@ -46,7 +46,7 @@ using Test, Statistics, ImageDraw, Images
         result = TrackingResult()
         storage = Gray.(img)
         BlobTracking.prepare_image!(storage,bt,img)
-        measurement = BlobTracking.measure(storage, bt, img, result)
+        measurement = BlobTracking.Measurement(storage, bt, img, result)
         @test measurement.assi == Int[]
         @test measurement.coordinates == locs
         @test isempty(result.blobs)
@@ -59,7 +59,7 @@ using Test, Statistics, ImageDraw, Images
 
         blobs = result.blobs
         BlobTracking.prepare_image!(storage,bt,img2)
-        measurement = BlobTracking.measure(storage, bt, img2, result)
+        measurement = BlobTracking.Measurement(storage, bt, img2, result)
         @test measurement.coordinates == locs2
         @test measurement.assi == 1:2
         BlobTracking.predict!(result)
@@ -79,7 +79,7 @@ using Test, Statistics, ImageDraw, Images
         @test blobs[1].counter == 0
         @test blobs[2].counter == 0
 
-        measurement = BlobTracking.measure(storage, bt, 0*img2, result)
+        measurement = BlobTracking.Measurement(storage, bt, 0*img2, result)
         @test isempty(measurement.coordinates)
         @test all(iszero, measurement.assi)
         filter!(result, bt, measurement)
@@ -88,8 +88,8 @@ using Test, Statistics, ImageDraw, Images
         BlobTracking.correct!(result, measurement)
         @test location.(blobs) == locs2
 
-        @test result.blobs[1].trace[3] == CartesianIndex(0,0)
-        @test result.blobs[2].trace[3] == CartesianIndex(0,0)
+        @test result.blobs[1].trace[3] == OOB
+        @test result.blobs[2].trace[3] == OOB
 
         @testset "track_blobs" begin
             @info "Testing track_blobs"

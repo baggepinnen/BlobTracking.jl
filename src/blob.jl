@@ -1,16 +1,29 @@
+const Trace = Vector{CartesianIndex{2}}
+
 Base.@kwdef mutable struct Blob
     kf
     counter::Int = 0
-    trace::Vector{CartesianIndex{2}} = CartesianIndex{2}[]
+    trace::Trace = CartesianIndex{2}[]
 end
 
 Base.Broadcast.broadcastable(b::Blob) = Ref(b)
+
+trace(b::Blob) = b.trace
+Base.skipmissing(trace::Trace) = filter(!=(OOB), trace)
+
 
 Base.@kwdef mutable struct TrackingResult
     blobs::Vector{Blob} = Blob[]
     dead::Vector{Blob} = Blob[]
 end
 
+allblobs(tr) = [tr.dead; tr.blobs]
+
+function trace(tr::TrackingResult; minlife=0)
+    blobs = allblobs(tr)
+    filter!(b->lifetime(b)>=minlife, blobs)
+    trace.(blobs)
+end
 
 Base.@kwdef mutable struct BlobTracker
     σw = 15.0
@@ -54,6 +67,8 @@ end
 Distributions.location(b::Blob) = CartesianIndex(round.(Int,(b.kf.x[1], b.kf.x[2])))
 Distributions.location(b) = b.location
 Distributions.location(b::Tuple) = CartesianIndex(b)
+lifetime(b) = findlast(c->c != OOB, b.trace)
+
 
 Base.CartesianIndex(blob::Blob) = CartesianIndex((round.(Int,blob.kf.x[1:2])...,))
 
@@ -65,9 +80,8 @@ too_far(bt,blob,coord) = dist(bt, blob, coord) > bt.dist_th
 
 
 
-function detect_blobs!(storage, bt::BlobTracker, img)
-    prepare_image!(storage, bt, img)
-    blobs = blob_LoG(storage,bt.sizes)
+function detect_blobs!(blob_storage, storage, bt::BlobTracker, img)
+    blobs = Images.blob_LoG!(blob_storage,storage,bt.sizes)
     blobs = filter!(x->x.amplitude > bt.amplitude_th, blobs)
     [b.location for b in blobs]
 end
