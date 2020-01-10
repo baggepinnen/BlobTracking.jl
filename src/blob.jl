@@ -81,7 +81,7 @@ too_far(bt,blob,coord) = dist(bt, blob, coord) > bt.dist_th
 
 
 function detect_blobs!(blob_storage, storage, bt::BlobTracker, img)
-    blobs = Images.blob_LoG!(blob_storage,storage,bt.sizes)
+    blobs = blob_LoG!(blob_storage,storage,bt.sizes)
     blobs = filter!(x->x.amplitude > bt.amplitude_th, blobs)
     [b.location for b in blobs]
 end
@@ -106,4 +106,17 @@ end
 for f in (:detect_blobs, :tune_sizes, :prepare_image, :apply_mask)
     fb = Symbol(f, :!)
     @eval $f(bt::BlobTracker, img) = $fb(Gray.(img), bt, img)
+end
+
+
+
+function blob_LoG!(img_LoG,img::AbstractArray{T,N}, σscales::Union{AbstractVector,Tuple},
+    edges::Tuple{Vararg{Bool}}=(true, ntuple(d->false, Val(N))...), σshape=ntuple(d->1, Val(N))) where {T,N}
+    sigmas = sort(σscales)
+    colons = ntuple(d->Colon(), Val(N))
+    @inbounds for isigma in eachindex(sigmas)
+        img_LoG[isigma,colons...] = (-sigmas[isigma]) * imfilter(img, Kernel.LoG(ntuple(i->sigmas[isigma]*σshape[i],Val(N))))
+    end
+    maxima = Images.findlocalmaxima(img_LoG, 1:ndims(img_LoG), edges)
+    [Images.BlobLoG(CartesianIndex(Base.tail(x.I)), sigmas[x[1]], img_LoG[x]) for x in maxima]
 end

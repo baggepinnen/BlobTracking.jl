@@ -80,9 +80,9 @@ end
 LowLevelParticleFilters.predict!(result::TrackingResult) = predict!(result.blobs)
 LowLevelParticleFilters.correct!(result::TrackingResult, measurement::Measurement) = correct!(result.blobs, measurement)
 
-function LowLevelParticleFilters.update!(storage, bt, img, result)
+function LowLevelParticleFilters.update!(blob_storage, storage, bt, img, result)
     blobs = result.blobs
-    measurement = Measurement(storage, bt, img, result)
+    measurement = Measurement(blob_storage, storage, bt, img, result)
     predict!(result)
     filter!(result, bt, measurement)
     correct!(result, measurement)
@@ -140,9 +140,10 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
     end
     storage1 = Float32.(Gray.(img))
     storage2 = Float32.(Gray.(img))
+    storage = Float32.(Gray.(img))
     blob_storage1 = Array{Float64}(undef, length(bt.sizes), size(img)...)
     blob_storage2 = Array{Float64}(undef, length(bt.sizes), size(img)...)
-    storage = Float32.(Gray.(img))
+    blob_storage = Array{Float64}(undef, length(bt.sizes), size(img)...)
     measurement = Measurement(blob_storage1, storage1, bt, img, result)
     spawn_blobs!(result, bt, measurement)
     showblobs(RGB.(Gray.(img)), result, measurement, recorder = recorder, display=display)
@@ -172,7 +173,7 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
     try
         for (ind,(img,coords)) in enumerate(buffer)
             println("Frame $ind")
-            measurement = update!(storage, bt, coords, result)
+            measurement = update!(blob_storage, storage, bt, coords, result)
             showblobs(RGB.(Gray.(img)),result,measurement, rad=6, recorder=recorder, display=display)
         end
     finally
