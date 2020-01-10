@@ -3,6 +3,11 @@ Base.@kwdef mutable struct Blob
     counter::Int = 0
 end
 
+Base.@kwdef mutable struct TrackingResult
+    blobs::Vector{Blob} = Blob[]
+    dead::Vector{Blob} = Blob[]
+end
+
 Base.@kwdef mutable struct BlobTracker
     σw = 15.0
     σe = 5.0
@@ -14,6 +19,8 @@ Base.@kwdef mutable struct BlobTracker
     distance::Type{<:PreMetric} = Mahalanobis
     mask = nothing
 end
+
+
 
 dt = 1
 A = @SMatrix [1. 0 dt 0; 0 1 0 dt; 0 0 1 0; 0 0 0 1] #state update matrice

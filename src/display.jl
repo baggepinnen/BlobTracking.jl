@@ -41,4 +41,11 @@ function record(img, recorder)
     r.index += 1
 end
 
+finalize() = nothing
+function finalize(r::Recorder)
+    finishencode!(r.encoder, r.saveio)
+    close(r.saveio)
+    mux("temp.stream",r.filename,r.framerate)
+end
+
 drawblob!(img;a=3,c=RGB(1,0,0)) = draw!(img, CirclePointRadius(b.location, a), c)

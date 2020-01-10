@@ -32,70 +32,98 @@ end
 threshold(th::Number) =  (storage, img) -> threshold!(storage, img, th)
 threshold!(storage, img, th) = storage .= Gray.(Gray.(img) .< th)
 
+struct Measurement
+    coordinates
+    assi
+end
 
+function assign(blobs, coordinates)
+    isempty(blobs) && (return 1:length(coordinates))
+    DM = [dist(b,c) for b in blobs, c in coordinates]
+    DM[DM .> DIST_TH] .= 10000
+    assi = hungarian(DM)[1]
+end
+
+function filter!(bt, m)
+    for (bi, ass) in enumerate(m.assi)
+        blob = blobs[bi]
+        if ass == 0 || too_far(blob,coordinates[ass]) # penalize not found
+            blob.counter += 1
+            assi[bi] = 0
+            continue
+        end
+    end
+end
+
+function LowLevelParticleFilters.predict!(blobs)
+    foreach(blob->predict!(blob.kf,0), blobs)
+end
+
+function LowLevelParticleFilters.correct!(blobs, measurement)
+    for (bi, ass) in enumerate(measurement.assi)
+        if ass != 0
+            ll = correct!(blobs[bi].kf,0,SVector(measurement.coordinates[ass].I))
+        end
+    end
+end
+
+LowLevelParticleFilters.predict!(result::TrackingResult) = predict!(result.blobs)
+LowLevelParticleFilters.correct!(result::TrackingResult, measurement) = correct!(result.blobs, measurement)
+
+function LowLevelParticleFilters.update!(storage, bt, img, result)
+    blobs,dead = result.blobs, result.dead
+    prepare_image!(storage,bt,img)
+    coordinates = detect_blobs!(storage, bt, img)
+    assi = assign(blobs, coordinates)
+    measurement = Measurement(coordinates, assi)
+    predict!(result)
+    filter!(bt, measurement)
+    correct!(result, measurement)
+    spawn_blobs!(result, bt, measurement)
+    showblobs(img,blobs,coordinates,newcoordinds, assi, rad=6, recorder=recorder, display=display)
+    kill_blobs!(result, bt)
+end
+
+function spawn_blobs!(result, bt, measurement)
+    newcoordinds = setdiff(1:length(measurement.coordinates), measurement.assi)
+    newblobs = Blob.(bt, coordinates[newcoordinds])
+    append!(result.blobs, newblobs)
+end
+
+function kill_blobs!(result, bt)
+    blobs,dead = result.blobs, result.dead
+    bi = 1
+    while bi <= length(blobs)
+        if blobs[bi].counter > bt.kill_counter_th
+            push!(dead, blobs[bi])
+            deleteat!(blobs, bi)
+        else
+            bi += 1
+        end
+    end
+end
+
+function measure(storage, bt, img, result)
+    coordinates = detect_blobs!(storage, bt, img)
+    assi = assign(result.blobs, coordinates)
+    measurement = Measurement(coordinates, assi)
+end
 
 function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
+    result = TrackingResult()
     img = first(vid)
     storage = Gray.(img)
     prepare_image!(storage,bt,img)
-    coordinates = detect_blobs!(storage, bt, img)
-    active = Blob.(coordinates)
-    dead = similar(active,0)
-    # candidates = similar(active,0)
-    showblobs(img,active,coordinates, recorder = recorder, display=display)
+    measurement = measure(storage, bt, img, result)
+    spawn_blobs!(result, bt, measurement)
+    showblobs(img, result.blobs, coordinates, recorder = recorder, display=display)
 
     for (ind,img) in enumerate(vid)
         println("Frame $ind")
-        prepare_image!(storage,bt,img)
-        coordinates = detect_blobs!(storage, bt, img)
-        DM = [dist(b,c) for b in active, c in coordinates]
-        DM[DM .> DIST_TH] .= 10000
-        assi = hungarian(DM)[1]
-        # sassi = Set(assi)
-
-        # predict and filter too distant measurements
-        for (bi, ass) in enumerate(assi)
-            blob = active[bi]
-            predict!(blob.kf,0)
-            if ass == 0 || too_far(blob,coordinates[ass]) # penalize not found
-                blob.counter += 1
-                assi[bi] = 0
-                continue
-            end
-        end
-
-        # update active blobs with measurements
-        for (bi, ass) in enumerate(assi)
-            ass != 0 && update!(active[bi].kf,0,SVector(coordinates[ass].I))
-        end
-
-        # add new blobs
-        newcoordinds = setdiff(1:length(coordinates), assi)
-        newblobs = map(initblob, coordinates[newcoordinds])
-        append!(active, newblobs)
-
-        showblobs(img,active,coordinates,newcoordinds, assi, rad=6, recorder=recorder, display=display)
-
-        # remove dead blobs
-        bi = 1
-        while bi <= length(active)
-            if active[bi].counter > KILL_COUNTER_TH
-                push!(dead, active[bi])
-                deleteat!(active, bi)
-            else
-                bi += 1
-            end
-        end
-
+        update!(storage, bt, img, result)
     end
-    if recorder  !== nothing
-        println("Done")
-        r = recorder
-        finishencode!(r.encoder, r.saveio)
-        close(r.saveio)
-        mux("temp.stream",r.filename,r.framerate)
-    end
-    active, dead
+    finalize(recorder)
+    result
 end
 
 
