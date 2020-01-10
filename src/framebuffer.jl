@@ -12,10 +12,11 @@ mutable struct FrameBuffer{T}
     end
 end
 
+capacity(fb::FrameBuffer) = size(fb.b,3)
 
 function Base.push!(b::FrameBuffer, img)
     b.c += 1
-    if b.c > length(b)
+    if b.c > capacity(b)
         b.full = true
         b.c = 1
     end

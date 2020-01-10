@@ -4,7 +4,7 @@ using Statistics, LinearAlgebra
 using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, MultivariateStats
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!, TrackingResult, Measurement, location
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!, TrackingResult, Measurement, location, threshold, invthreshold
 
 
 
@@ -30,7 +30,10 @@ function Base.iterate(vid::VideoIO.VideoReader, state)
 end
 
 threshold(th::Number) =  (storage, img) -> threshold!(storage, img, th)
-threshold!(storage, img, th) = storage .= Gray.(Gray.(img) .< th)
+threshold!(storage, img, th) = storage .= Gray.(Float32.(Gray.(img) .> th))
+
+invthreshold(th::Number) =  (storage, img) -> invthreshold!(storage, img, th)
+invthreshold!(storage, img, th) = storage .= Gray.(Float32.(Gray.(img) .< th))
 
 struct Measurement
     coordinates
@@ -54,13 +57,14 @@ function Base.filter!(result, bt::BlobTracker, m::Measurement)
             continue
         end
     end
+    m
 end
 
 function LowLevelParticleFilters.predict!(blobs)
     foreach(blob->predict!(blob.kf,0), blobs)
 end
 
-function LowLevelParticleFilters.correct!(blobs, measurement)
+function LowLevelParticleFilters.correct!(blobs, measurement::Measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
             ll = correct!(blobs[bi].kf,SVector(measurement.coordinates[ass].I))
@@ -107,6 +111,7 @@ end
 
 function measure(storage, bt, img, result)
     coordinates = detect_blobs!(storage, bt, img)
+    bt.mask === nothing || (coordinates = filter!(c->bt.mask[c] != 0, coordinates))
     assi = assign(bt, result.blobs, coordinates)
     measurement = Measurement(coordinates, assi)
 end

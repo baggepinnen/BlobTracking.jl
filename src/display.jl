@@ -14,13 +14,13 @@ function showblobs(img,result,m;rad=8, recorder=nothing, display=true)
     # img = copy(img)
     !display && recorder === nothing && return
     blobs = result.blobs
-    foreach(eachindex(m.assi)) do bi
-        blob = blobs[bi]
-        blobcoord = CartesianIndex(blob)
-        draw!(img, ImageDraw.CirclePointRadius(blobcoord, rad),RGB(0,0,1))
-        a = assi[bi]
-        a == 0 && return
-        draw!(img, ImageDraw.LineSegment(blobcoord, m.coordinates[a]))
+    foreach(blobs) do blob
+        blobcoord = location(blob)
+        c = length(blob.trace) == 1 ? RGB(0,1,0) : RGB(0,0,1)
+        draw!(img, ImageDraw.CirclePointRadius(blobcoord, rad),c)
+        mcoord = blob.trace[end]
+        mcoord == CartesianIndex(0,0) && return
+        draw!(img, ImageDraw.LineSegment(blobcoord, mcoord))
     end
     foreach(enumerate(m.coordinates)) do (ci,coord)
         c = RGB(1,0,0) # ci ∈ newcoordinds ? RGB(0,1,0) : RGB(1,0,0)
@@ -42,8 +42,8 @@ function record(img, recorder)
     r.index += 1
 end
 
-finalize(_) = nothing
-function finalize(r::Recorder)
+Base.finalize(::Nothing) = nothing
+function Base.finalize(r::Recorder)
     finishencode!(r.encoder, r.saveio)
     close(r.saveio)
     mux("temp.stream",r.filename,r.framerate)
