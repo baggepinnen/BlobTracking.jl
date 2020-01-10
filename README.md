@@ -12,21 +12,70 @@ This package contains some facilities for the afromentioned detection and tracki
 
 
 ## Usage
-Something like this:
+In the example below, we are tracking birds that fly around a tree.
+
+### Load a video
 ```julia
 using BlobTracking, Images, VideoIO
 path = "/home/fredrikb/Video/2_small.MP4"
 io   = VideoIO.open(path)
 vid  = VideoIO.openvideo(io)
 img  = first(vid)
-fb   = FrameBuffer(Gray.(img), 10)
-foreach(1:10) do i
+```
+![window](figs/img.jpg)
+
+### Create a background image
+We create a background image to subtract from each image
+```julia
+fb   = FrameBuffer(img, 4) # A buffer of 4 frames
+foreach(1:3) do i # Populate the buffer
     push!(fb,first(vid))
 end
-mask = Gray.(median(fb) .> 0.4) |> reduce(∘, fill(erode, 10))
+background = median(fb)
+```
+![window](figs/img.jpg)
 
-bt = BlobTracker(sizes=2:5, mask=mask)
+### Create a mask
+If you want to detect birds (blobs) in the entire image, you can skip this step.
+
+A mask is a binary image that is true where you want to be able to detect blobs and false where you want to ignore.
+```julia
+mask = (median(fb) .> 0.4) |> reduce(∘, fill(erode, 30)) |> reduce(∘, fill(dilate, 20))
+mask[:,1190:end] .= 0
+mask[end-50:end,:] .= 0
+```
+![window](figs/mask.png)
+
+### Preprocessing
+For the tracking to work well, it's important that we feed the tracker nice and clean images. An example of a pre-processing function looks like this
+```julia
+function preprocessor(storage, img)
+    storage .= Float32.(img)
+    storage .= Float32.(abs.(storage .- background) .> 0.3)
+end
+```
+![window](figs/pre.png)
+Notice how the tree contours are still present in this image? This is okay since that is behind the mask we created above. The mask was created by dilating the tree slightly so that it covers slightly more than the tree. However, in this image you can also see two small spots to the right of the tree, representing birds.
+
+### Run tracking
+We now create the `BlobTracker` and run the tracking. If we don't know an appropriate value for the `sizes` vector that determines the size scales of the blobs, we may call the function `tune_sizes` to get a small GUI with a slider to help us out (works in Juno and IJulia)
+```julia
+bt = BlobTracker(sizes=3:3, mask=mask,preprocessor=preprocessor,
+                                        amplitude_th = 0.05,
+                                        dist_th = 40,
+                                        σw = 10.0, # Dynamics noise variance
+                                        σe = 5.0)  # Measurement noise variance
 tune_sizes(bt, img)
 
-@time active, dead = track_blobs(bt, vid, display=true, recorder=Recorder())
+result = track_blobs(bt, vid,
+                         display = false, # turn on for live display
+                         recorder = Recorder()) # records result to video on disk
 ```
+
+### Visualization etc.
+
+```julia
+traces = trace(result)
+draw!(copy(img), traces)
+```
+![window](figs/traces.jpg)
