@@ -4,7 +4,7 @@ using Statistics, LinearAlgebra
 using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, MultivariateStats
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, drawblob!, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!, TrackingResult, Measurement, location
 
 
 
@@ -37,19 +37,20 @@ struct Measurement
     assi
 end
 
-function assign(blobs, coordinates)
-    isempty(blobs) && (return 1:length(coordinates))
-    DM = [dist(b,c) for b in blobs, c in coordinates]
-    DM[DM .> DIST_TH] .= 10000
+function assign(bt, blobs, coordinates)
+    isempty(blobs) && (return Int[])
+    isempty(coordinates) && (return zeros(Int, length(blobs)))
+    DM = [dist(bt,b,c) for b in blobs, c in coordinates]
+    DM[DM .> bt.dist_th] .= 100000
     assi = hungarian(DM)[1]
 end
 
-function filter!(bt, m)
+function Base.filter!(result, bt::BlobTracker, m::Measurement)
     for (bi, ass) in enumerate(m.assi)
-        blob = blobs[bi]
-        if ass == 0 || too_far(blob,coordinates[ass]) # penalize not found
+        blob = result.blobs[bi]
+        if ass == 0 || too_far(bt, blob,m.coordinates[ass]) # penalize not found
             blob.counter += 1
-            assi[bi] = 0
+            m.assi[bi] = 0
             continue
         end
     end
@@ -62,7 +63,10 @@ end
 function LowLevelParticleFilters.correct!(blobs, measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
-            ll = correct!(blobs[bi].kf,0,SVector(measurement.coordinates[ass].I))
+            ll = correct!(blobs[bi].kf,SVector(measurement.coordinates[ass].I))
+            push!(blobs[bi].trace, measurement.coordinates[ass])
+        else
+            push!(blobs[bi].trace, CartesianIndex(0,0))
         end
     end
 end
@@ -71,22 +75,20 @@ LowLevelParticleFilters.predict!(result::TrackingResult) = predict!(result.blobs
 LowLevelParticleFilters.correct!(result::TrackingResult, measurement) = correct!(result.blobs, measurement)
 
 function LowLevelParticleFilters.update!(storage, bt, img, result)
-    blobs,dead = result.blobs, result.dead
+    blobs = result.blobs
     prepare_image!(storage,bt,img)
-    coordinates = detect_blobs!(storage, bt, img)
-    assi = assign(blobs, coordinates)
-    measurement = Measurement(coordinates, assi)
+    measurement = measure(storage, bt, img, result)
     predict!(result)
-    filter!(bt, measurement)
+    filter!(result, bt, measurement)
     correct!(result, measurement)
     spawn_blobs!(result, bt, measurement)
-    showblobs(img,blobs,coordinates,newcoordinds, assi, rad=6, recorder=recorder, display=display)
     kill_blobs!(result, bt)
+    measurement
 end
 
 function spawn_blobs!(result, bt, measurement)
     newcoordinds = setdiff(1:length(measurement.coordinates), measurement.assi)
-    newblobs = Blob.(bt, coordinates[newcoordinds])
+    newblobs = Blob.(bt, measurement.coordinates[newcoordinds])
     append!(result.blobs, newblobs)
 end
 
@@ -105,22 +107,23 @@ end
 
 function measure(storage, bt, img, result)
     coordinates = detect_blobs!(storage, bt, img)
-    assi = assign(result.blobs, coordinates)
+    assi = assign(bt, result.blobs, coordinates)
     measurement = Measurement(coordinates, assi)
 end
 
 function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
     result = TrackingResult()
-    img = first(vid)
+    img,vid = Iterators.peel(vid)
     storage = Gray.(img)
     prepare_image!(storage,bt,img)
     measurement = measure(storage, bt, img, result)
     spawn_blobs!(result, bt, measurement)
-    showblobs(img, result.blobs, coordinates, recorder = recorder, display=display)
+    showblobs(img, result, measurement, recorder = recorder, display=display)
 
     for (ind,img) in enumerate(vid)
         println("Frame $ind")
-        update!(storage, bt, img, result)
+        measurement = update!(storage, bt, img, result)
+        showblobs(img,result,measurement, rad=6, recorder=recorder, display=display)
     end
     finalize(recorder)
     result

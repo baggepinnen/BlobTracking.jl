@@ -10,19 +10,20 @@ Recorder(img;kwargs...) = Recorder(;encoder=prepareencoder(img, framerate=framer
 
 
 
-function showblobs(img,blobs,coords,newcoordinds=[0], assi=zeros(length(blobs));rad=8, recorder=nothing, display=true)
+function showblobs(img,result,m;rad=8, recorder=nothing, display=true)
     # img = copy(img)
     !display && recorder === nothing && return
-    foreach(eachindex(assi)) do bi
+    blobs = result.blobs
+    foreach(eachindex(m.assi)) do bi
         blob = blobs[bi]
         blobcoord = CartesianIndex(blob)
         draw!(img, ImageDraw.CirclePointRadius(blobcoord, rad),RGB(0,0,1))
         a = assi[bi]
         a == 0 && return
-        draw!(img, ImageDraw.LineSegment(blobcoord, coords[a]))
+        draw!(img, ImageDraw.LineSegment(blobcoord, m.coordinates[a]))
     end
-    foreach(enumerate(coords)) do (ci,coord)
-        c = ci ∈ newcoordinds ? RGB(0,1,0) : RGB(1,0,0)
+    foreach(enumerate(m.coordinates)) do (ci,coord)
+        c = RGB(1,0,0) # ci ∈ newcoordinds ? RGB(0,1,0) : RGB(1,0,0)
         draw!(img, ImageDraw.CirclePointRadius(coord, rad/2), c)
     end
     record(img, recorder)
@@ -41,11 +42,12 @@ function record(img, recorder)
     r.index += 1
 end
 
-finalize() = nothing
+finalize(_) = nothing
 function finalize(r::Recorder)
     finishencode!(r.encoder, r.saveio)
     close(r.saveio)
     mux("temp.stream",r.filename,r.framerate)
 end
 
-drawblob!(img;a=3,c=RGB(1,0,0)) = draw!(img, CirclePointRadius(b.location, a), c)
+drawblob!(img,b;kwargs...) = drawblob!(img,location(b);kwargs...)
+drawblob!(img,coord::CartesianIndex;a=3,c=RGB(1.,0.,0.)) = draw!(img, CirclePointRadius(coord, a), c)

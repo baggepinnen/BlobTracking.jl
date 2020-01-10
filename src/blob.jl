@@ -1,12 +1,16 @@
 Base.@kwdef mutable struct Blob
     kf
     counter::Int = 0
+    trace::Vector{CartesianIndex{2}} = CartesianIndex{2}[]
 end
+
+Base.Broadcast.broadcastable(b::Blob) = Ref(b)
 
 Base.@kwdef mutable struct TrackingResult
     blobs::Vector{Blob} = Blob[]
     dead::Vector{Blob} = Blob[]
 end
+
 
 Base.@kwdef mutable struct BlobTracker
     σw = 15.0
@@ -19,6 +23,8 @@ Base.@kwdef mutable struct BlobTracker
     distance::Type{<:PreMetric} = Mahalanobis
     mask = nothing
 end
+
+Base.Broadcast.broadcastable(b::BlobTracker) = Ref(b)
 
 
 
@@ -42,8 +48,12 @@ function Blob(bt::BlobTracker,coord::CartesianIndex)
     kf = KalmanFilter(A,B,C,0,Rw(bt),Re(bt),MvNormal(10Rw(bt)))
     kf.x[1] = coord[1]
     kf.x[2] = coord[2]
-    Blob(kf,0)
+    Blob(kf=kf, trace=[coord])
 end
+
+Distributions.location(b::Blob) = CartesianIndex(round.(Int,(b.kf.x[1], b.kf.x[2])))
+Distributions.location(b) = b.location
+Distributions.location(b::Tuple) = CartesianIndex(b)
 
 Base.CartesianIndex(blob::Blob) = CartesianIndex((round.(Int,blob.kf.x[1:2])...,))
 
@@ -51,14 +61,14 @@ function dist(bt::BlobTracker, blob, c)
     sqrt((c[1]-blob.kf.x[1])^2 + (c[2]-blob.kf.x[2])^2)
 end
 
-too_far(blob,coord) = dist(blob, coord) > DIST_TH
+too_far(bt,blob,coord) = dist(bt, blob, coord) > bt.dist_th
 
 
 
 function detect_blobs!(storage, bt::BlobTracker, img)
     prepare_image!(storage, bt, img)
-    blobs = blob_LoG(storage,sizes)
-    blobs = filter!(x->x.amplitude > amplitude_th, blobs)
+    blobs = blob_LoG(storage,bt.sizes)
+    blobs = filter!(x->x.amplitude > bt.amplitude_th, blobs)
     [b.location for b in blobs]
 end
 
