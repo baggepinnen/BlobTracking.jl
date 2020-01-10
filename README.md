@@ -75,7 +75,7 @@ result = track_blobs(bt, vid,
 ### Visualization etc.
 
 ```julia
-traces = trace(result)
+traces = trace(result, minlife=5) # Filter minimum lifetime of 5
 draw!(copy(img), traces)
 ```
 ![window](figs/traces.jpg)

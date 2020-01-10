@@ -7,13 +7,13 @@ using Test, Statistics, ImageDraw, Images
 
     img = Gray.(zeros(100,100))
     locs = [CartesianIndex(10,10), CartesianIndex(30,30)]
-    drawblob!(img,locs[1], c=Gray(1.0))
-    drawblob!(img,locs[2], c=Gray(1.0))
+    draw!(img,locs[1], c=Gray(1.0))
+    draw!(img,locs[2], c=Gray(1.0))
 
     img2 = Gray.(zeros(100,100))
     locs2 = [CartesianIndex(12,12), CartesianIndex(32,32)]
-    drawblob!(img2,locs2[1], c=Gray(1.0))
-    drawblob!(img2,locs2[2], c=Gray(1.0))
+    draw!(img2,locs2[1], c=Gray(1.0))
+    draw!(img2,locs2[2], c=Gray(1.0))
 
     @testset "FrameBuffer" begin
         @info "Testing FrameBuffer"
