@@ -116,12 +116,25 @@ end
 
 
 function blob_LoG!(img_LoG,img::AbstractArray{T,N}, σscales::Union{AbstractVector,Tuple},
-    edges::Tuple{Vararg{Bool}}=(true, ntuple(d->false, Val(N))...), σshape=ntuple(d->1, Val(N))) where {T,N}
+    edges::Tuple{Vararg{Bool}}=(ntuple(d->false, Val(N))..., true), σshape=ntuple(d->1, Val(N))) where {T,N}
     sigmas = sort(σscales)
     colons = ntuple(d->Colon(), Val(N))
     @inbounds for isigma in eachindex(sigmas)
-        img_LoG[isigma,colons...] = (-sigmas[isigma]) * imfilter(img, Kernel.LoG(ntuple(i->sigmas[isigma]*σshape[i],Val(N))))
+        img_LoG[colons...,isigma] .= (-sigmas[isigma]) .* imfilter!(@view(img_LoG[colons...,isigma]), img, Kernel.LoG(ntuple(i->sigmas[isigma]*σshape[i],Val(N))))
     end
     maxima = Images.findlocalmaxima(img_LoG, 1:ndims(img_LoG), edges)
-    [Images.BlobLoG(CartesianIndex(Base.tail(x.I)), sigmas[x[1]], img_LoG[x]) for x in maxima]
+    [Images.BlobLoG(CartesianIndex(rtailr(x.I)), sigmas[x[ndims(img_LoG)]], img_LoG[x]) for x in maxima]
 end
+
+@inline rtailr(x) = reverse(Base.tail(reverse(x)))
+
+# function blob_LoG!(img_LoG,img::AbstractArray{T,N}, σscales::Union{AbstractVector,Tuple},
+#     edges::Tuple{Vararg{Bool}}=(true, ntuple(d->false, Val(N))...), σshape=ntuple(d->1, Val(N))) where {T,N}
+#     sigmas = sort(σscales)
+#     colons = ntuple(d->Colon(), Val(N))
+#     @inbounds for isigma in eachindex(sigmas)
+#         img_LoG[isigma,colons...] = (-sigmas[isigma]) * imfilter(img, Kernel.LoG(ntuple(i->sigmas[isigma]*σshape[i],Val(N))))
+#     end
+#     maxima = Images.findlocalmaxima(img_LoG, 1:ndims(img_LoG), edges)
+#     [Images.BlobLoG(CartesianIndex(Base.tail(x.I)), sigmas[x[1]], img_LoG[x]) for x in maxima]
+# end

@@ -47,8 +47,8 @@ function assign(bt, blobs, coordinates)
     isempty(blobs) && (return Int[])
     isempty(coordinates) && (return zeros(Int, length(blobs)))
     DM = [dist(bt,b,c) for b in blobs, c in coordinates]
-    DM[DM .> bt.dist_th] .= 100000
-    assi = hungarian(sqrt.(DM))[1]
+    # DM[DM .> bt.dist_th] .= 100000
+    assi = hungarian((DM))[1]
 end
 
 function Base.filter!(result, bt::BlobTracker, m::Measurement)
@@ -135,7 +135,7 @@ struct Workspace{T1,T2}
 end
 function Workspace(img::AbstractMatrix, n::Int)
     storage = Gray.(img)
-    blob_storage = Array{Float64}(undef, n, size(img)...)
+    blob_storage = Array{Float64}(undef, size(img)..., n)
     Workspace(storage,blob_storage)
 end
 Workspace(img::AbstractMatrix, bt::BlobTracker) = Workspace(img, length(bt.sizes))
