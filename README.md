@@ -33,7 +33,7 @@ foreach(1:3) do i # Populate the buffer
 end
 background = median(fb)
 ```
-![window](figs/img.jpg)
+
 
 ### Create a mask
 If you want to detect birds (blobs) in the entire image, you can skip this step.
@@ -55,16 +55,16 @@ function preprocessor(storage, img)
 end
 ```
 ![window](figs/pre.png)
-Notice how the tree contours are still present in this image? This is okay since that is behind the mask we created above. The mask was created by dilating the tree slightly so that it covers slightly more than the tree. However, in this image you can also see two small spots to the right of the tree, representing birds.
+Notice how the tree contours are still present in this image? This is okay since that is behind the mask we created above. The mask was created by dilating the tree slightly so that the mask covers slightly more than the tree. However, in this image you can also see two small spots to the right of the tree, representing birds.
 
 ### Run tracking
-We now create the `BlobTracker` and run the tracking. If we don't know an appropriate value for the `sizes` vector that determines the size scales of the blobs, we may call the function `tune_sizes` to get a small GUI with a slider to help us out (works in Juno and IJulia)
+We now create the `BlobTracker` and run the tracking. If we don't know an appropriate value for the `sizes` vector that determines the size scales of the blobs, we may call the function `tune_sizes` to get a small GUI with a slider to help us out (works in Juno and IJulia). The length of `sizes` has a large impact on the time it takes to process each frame since the majority of the processing time is taken up by the blob detection.
 ```julia
 bt = BlobTracker(sizes=3:3, mask=mask,preprocessor=preprocessor,
                                         amplitude_th = 0.05,
-                                        dist_th = 40,
-                                        σw = 10.0, # Dynamics noise variance
-                                        σe = 5.0)  # Measurement noise variance
+                                        dist_th = 4,
+                                        σw = 10.0, # Dynamics noise std.
+                                        σe = 5.0)  # Measurement noise std. (pixels)
 tune_sizes(bt, img)
 
 result = track_blobs(bt, vid,

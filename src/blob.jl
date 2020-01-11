@@ -46,7 +46,7 @@ A = @SMatrix [1. 0 dt 0; 0 1 0 dt; 0 0 1 0; 0 0 0 1] #state update matrice
 B = @SVector [(dt^2/2), (dt^2/2), dt, dt]
 C = @SMatrix [1. 0 0 0; 0 1 0 0]
 
-Re(σe) = diagm([σe, σe])
+Re(σe) = diagm([σe^2, σe^2])
 Rw(σw) =  [dt^4/4 0 dt^3/2 0;
     0 dt^4/4 0 dt^3/2;
     dt^3/2 0 dt^2 0;
@@ -73,39 +73,44 @@ lifetime(b) = findlast(c->c != OOB, b.trace)
 Base.CartesianIndex(blob::Blob) = CartesianIndex((round.(Int,blob.kf.x[1:2])...,))
 
 function dist(bt::BlobTracker, blob, c)
-    sqrt((c[1]-blob.kf.x[1])^2 + (c[2]-blob.kf.x[2])^2)
+    k = blob.kf
+    d = Mahalanobis(inv(k.C*covariance(k)*k.C'))
+    v1 = SVector(c.I)
+    v2 = SVector(k.x[1], k.x[2])
+    d(v1,v2)
+    # sqrt((c[1]-blob.kf.x[1])^2 + (c[2]-blob.kf.x[2])^2)
 end
 
 too_far(bt,blob,coord) = dist(bt, blob, coord) > bt.dist_th
 
 
 
-function detect_blobs!(blob_storage, storage, bt::BlobTracker, img)
-    blobs = blob_LoG!(blob_storage,storage,bt.sizes)
+function detect_blobs!(ws, bt::BlobTracker, img)
+    blobs = blob_LoG!(ws.blob_storage,ws.storage,bt.sizes)
     blobs = filter!(x->x.amplitude > bt.amplitude_th, blobs)
     [b.location for b in blobs]
 end
 
-function tune_sizes!(storage, bt::BlobTracker, img)
-    prepare_image!(storage, bt, img)
+function tune_sizes!(ws, bt::BlobTracker, img)
+    prepare_image!(ws, bt, img)
     @manipulate for k = 1:100
-        imadjustintensity(imfilter(storage, Kernel.LoG(k)))
+        imadjustintensity(imfilter(ws.storage, Kernel.LoG(k)))
     end
 end
 
-function prepare_image!(storage, bt, img)
-    apply_mask!(storage,bt,img)
-    bt.preprocessor(storage, img)
+function prepare_image!(ws, bt, img)
+    apply_mask!(ws,bt,img)
+    bt.preprocessor(ws.storage, img)
 end
 
-function apply_mask!(storage,bt,img)
+function apply_mask!(ws,bt,img)
     bt.mask === nothing && return img
-    return storage .= bt.mask .* img
+    return ws.storage .= bt.mask .* img
 end
 
 for f in (:detect_blobs, :tune_sizes, :prepare_image, :apply_mask)
     fb = Symbol(f, :!)
-    @eval $f(bt::BlobTracker, img) = $fb(Gray.(img), bt, img)
+    @eval $f(bt::BlobTracker, img) = $fb(Workspace(img,bt), bt, img)
 end
 
 
