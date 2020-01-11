@@ -49,13 +49,13 @@ function Base.iterate(b::FrameBuffer, state=1)
 end
 
 
-
 for f in (median, mean, sum, std, var, reshape, size)
     m = parentmodule(f)
     fs = nameof(f)
     @eval function $m.$fs(b::FrameBuffer{T}, args...)::Matrix{T} where T
         if b.full
-            return dropdims($fs(b.b, args..., dims=3), dims=3)
+            # return dropdims($fs(b.b, args..., dims=3), dims=3)
+            return map($fs, Slices(b.b, 3))
         else
             return dropdims($fs(@view(b.b[:,:,1:b.c]), args..., dims=3), dims=3)
         end
