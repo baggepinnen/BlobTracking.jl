@@ -44,10 +44,9 @@ using Test, Statistics, ImageDraw, Images
         @info "Testing Tracking"
         bt = BlobTracker(sizes=2:2)
         result = TrackingResult()
-        storage = Gray.(img)
-        blobstorage = zeros(1,size(img)...)
-        BlobTracking.prepare_image!(storage,bt,img)
-        measurement = BlobTracking.Measurement(blobstorage,storage, bt, img, result)
+        ws = BlobTracking.Workspace(img, bt)
+        BlobTracking.prepare_image!(ws,bt,img)
+        measurement = BlobTracking.Measurement(ws, bt, img, result)
         @test measurement.assi == Int[]
         @test measurement.coordinates == locs
         @test isempty(result.blobs)
@@ -59,8 +58,8 @@ using Test, Statistics, ImageDraw, Images
         @test result.blobs[2].trace[1] == locs[2]
 
         blobs = result.blobs
-        BlobTracking.prepare_image!(storage,bt,img2)
-        measurement = BlobTracking.Measurement(blobstorage,storage, bt, img2, result)
+        BlobTracking.prepare_image!(ws,bt,img2)
+        measurement = BlobTracking.Measurement(ws, bt, img2, result)
         @test measurement.coordinates == locs2
         @test measurement.assi == 1:2
         BlobTracking.predict!(result)
@@ -80,7 +79,7 @@ using Test, Statistics, ImageDraw, Images
         @test blobs[1].counter == 0
         @test blobs[2].counter == 0
 
-        measurement = BlobTracking.Measurement(blobstorage,storage, bt, 0*img2, result)
+        measurement = BlobTracking.Measurement(ws, bt, 0*img2, result)
         @test isempty(measurement.coordinates)
         @test all(iszero, measurement.assi)
         filter!(result, bt, measurement)
