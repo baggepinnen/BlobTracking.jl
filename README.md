@@ -4,9 +4,9 @@
 [![Codecov](https://codecov.io/gh/baggepinnen/BlobTracking.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/BlobTracking.jl)
 
 
-Detect and track blobs (like birds or bugs) moving around in an image. Blobs are detected using simple [Laplacian-of-Gaussian filtering](https://en.wikipedia.org/wiki/Blob_detection) (from [Images.jl](https://juliaimages.org/latest/function_reference/#Images.blob_LoG)) and tracked using a Kalman filter from [LowLevelParticleFilters.jl](https://github.com/baggepinnen/LowLevelParticleFilters.jl).
+Detect and track [blobs](https://en.wikipedia.org/wiki/Blob_detection) (like birds or bugs) moving around in an image. Blobs are detected using simple [Laplacian-of-Gaussian filtering](https://en.wikipedia.org/wiki/Blob_detection) (from [Images.jl](https://juliaimages.org/latest/function_reference/#Images.blob_LoG)) and tracked using a Kalman filter from [LowLevelParticleFilters.jl](https://github.com/baggepinnen/LowLevelParticleFilters.jl).
 
-This package contains some facilities for the afromentioned detection and tracking, as well as some utilities for background removal etc.
+This package contains some facilities for the aforementioned detection and tracking, as well as some utilities for background removal etc.
 
 
 
@@ -93,9 +93,10 @@ draw!(drawimg, traces, c=RGB(0,0,0.5))
 draw!(drawimg, measurement_traces, c=RGB(0.5,0,0))
 ```
 ![window](figs/traces.jpg)
+In the image, green dots represent spawning positions and red dots the last obtained measurement for a blob in case of the red measurement traces, and the point at which the blob was killed in case of the blue location traces.
 
 ## Further documentation
-Most functions have docstrings. Docstrings of types hints at what functions you can call on instances of the type. The types present in this package are
+Most functions have docstrings. Docstrings of types hint at what functions you can call on instances of the type. The types present in this package are
 - `Blob`
 - `BlobTracker`
 - `TrackingResult`
