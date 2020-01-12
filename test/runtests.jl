@@ -1,7 +1,7 @@
 # using Pkg
 # pkg"activate /home/fredrikb/.julia/dev/BlobTracking/"
 using BlobTracking
-using Test, Statistics, ImageDraw, Images
+using Test, Statistics, ImageDraw, Images, VideoIO
 
 @testset "BlobTracking.jl" begin
 
@@ -27,17 +27,13 @@ using Test, Statistics, ImageDraw, Images
 
     end
 
-    @testset "Background extraction" begin
-        @info "Testing Background extraction"
-
-        @testset "MedianBackground" begin
-            @info "Testing MedianBackground"
-
-            be = MedianBackground(randn(2,2),2)
-
-        end
-
-    end
+    # @testset "Background extraction" begin
+    #     @info "Testing Background extraction"
+    #     @testset "MedianBackground" begin
+    #         @info "Testing MedianBackground"
+    #         be = MedianBackground(randn(2,2),2)
+    #     end
+    # end
 
 
     @testset "Tracking" begin
@@ -54,8 +50,8 @@ using Test, Statistics, ImageDraw, Images
         @test length(result.blobs) == 2
         @test isempty(result.dead)
         @test location.(result.blobs) == locs
-        @test result.blobs[1].tracem[1] == locs[1]
-        @test result.blobs[2].tracem[1] == locs[2]
+        @test tracem(result.blobs[1])[1] == locs[1]
+        @test tracem(result.blobs[2])[1] == locs[2]
 
         blobs = result.blobs
         BlobTracking.prepare_image!(ws,bt,img2)
@@ -101,6 +97,22 @@ using Test, Statistics, ImageDraw, Images
             @test result.blobs[1].tracem[2] == locs2[1]
             @test result.blobs[2].tracem[2] == locs2[2]
         end
+    end
+    @testset "display" begin
+        @info "Testing display"
+        bt = BlobTracker(sizes=2:2)
+        recorder = Recorder()
+        result = track_blobs(bt,[N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2))], display=img->println("displaying image"), recorder=recorder)
+        traces =  trace(result, minlife=2)
+        tracems =  tracem(result, minlife=2)
 
+        drawimg = RGB.(img)
+        draw!(drawimg, traces, c=RGB(0,0,0.5))
+        draw!(drawimg, tracems, c=RGB(0.5,0,0))
+        @test isfile(recorder.filename)
+        io = VideoIO.open(recorder.filename)
+        vid = VideoIO.openvideo(io)
+        frame1 = first(vid)
+        @test size(frame1) == size(img)
     end
 end
