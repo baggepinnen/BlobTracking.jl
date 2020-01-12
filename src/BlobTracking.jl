@@ -145,14 +145,12 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, thre
     img,vid = Iterators.peel(vid)
     t1 = Ref{Task}()
     t2 = Ref{Task}()
-    vidbuffer = if threads
-        Channel{typeof(img)}(2, spawn=true, taskref=t1) do ch
+    if threads
+        vidbuffer = Channel{typeof(img)}(2, spawn=true, taskref=t1) do ch
             for img in vid
                 put!(ch,img)
             end
         end
-    else
-        vid
     end
 
     ws = Workspace(img, length(bt.sizes))
@@ -160,10 +158,10 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, thre
     spawn_blobs!(result, bt, measurement)
     showblobs(RGB.(Gray.(img)), result, measurement, recorder = recorder, display=display)
 
-    if threads
+    buffer = if threads
         ws1 = Workspace(img, length(bt.sizes))
         ws2 = Workspace(img, length(bt.sizes))
-        buffer = Channel{Tuple{typeof(img), Trace}}(2, spawn=false, taskref=t2) do ch
+        Channel{Tuple{typeof(img), Trace}}(2, spawn=false, taskref=t2) do ch
             # for img in vidbuffer
             #     coords = measure(storage1, bt, img)
             #     put!(ch, (img, coords))
@@ -184,6 +182,8 @@ function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, thre
                 end
             end
         end
+    else
+        vid
     end
 
     try
