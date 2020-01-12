@@ -54,8 +54,8 @@ using Test, Statistics, ImageDraw, Images
         @test length(result.blobs) == 2
         @test isempty(result.dead)
         @test location.(result.blobs) == locs
-        @test result.blobs[1].trace[1] == locs[1]
-        @test result.blobs[2].trace[1] == locs[2]
+        @test result.blobs[1].tracem[1] == locs[1]
+        @test result.blobs[2].tracem[1] == locs[2]
 
         blobs = result.blobs
         BlobTracking.prepare_image!(ws,bt,img2)
@@ -70,8 +70,8 @@ using Test, Statistics, ImageDraw, Images
         BlobTracking.correct!(result, measurement)
         @test location.(blobs) == locs2
 
-        @test result.blobs[1].trace[2] == locs2[1]
-        @test result.blobs[2].trace[2] == locs2[2]
+        @test result.blobs[1].tracem[2] == locs2[1]
+        @test result.blobs[2].tracem[2] == locs2[2]
 
         @test all(>(0), blobs[1].kf.x[3:4]) # Positive velocities
         @test all(>(0), blobs[2].kf.x[3:4])
@@ -88,18 +88,18 @@ using Test, Statistics, ImageDraw, Images
         BlobTracking.correct!(result, measurement)
         @test location.(blobs) == locs2
 
-        @test result.blobs[1].trace[3] == OOB
-        @test result.blobs[2].trace[3] == OOB
+        @test result.blobs[1].tracem[3] == OOB
+        @test result.blobs[2].tracem[3] == OOB
 
         @testset "track_blobs" begin
             @info "Testing track_blobs"
             bt = BlobTracker(sizes=2:2)
             result = track_blobs(bt,[img,img2])
 
-            @test result.blobs[1].trace[1] == locs[1]
-            @test result.blobs[2].trace[1] == locs[2]
-            @test result.blobs[1].trace[2] == locs2[1]
-            @test result.blobs[2].trace[2] == locs2[2]
+            @test result.blobs[1].tracem[1] == locs[1]
+            @test result.blobs[2].tracem[1] == locs[2]
+            @test result.blobs[1].tracem[2] == locs2[1]
+            @test result.blobs[2].tracem[2] == locs2[2]
         end
 
     end

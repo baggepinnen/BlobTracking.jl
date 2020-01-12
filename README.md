@@ -62,14 +62,21 @@ We now create the `BlobTracker` and run the tracking. If we don't know an approp
 ```julia
 bt = BlobTracker(sizes=3:3, mask=mask,preprocessor=preprocessor,
                                         amplitude_th = 0.05,
-                                        dist_th = 4,
-                                        σw = 10.0, # Dynamics noise std.
-                                        σe = 5.0)  # Measurement noise std. (pixels)
+                                        dist_th = 2, # Number of sigmas away from a predicted location a measurement is accepted.
+                                        σw = 2.0, # Dynamics noise std.
+                                        σe = 10.0)  # Measurement noise std. (pixels)
 tune_sizes(bt, img)
 
 result = track_blobs(bt, vid,
-                         display = false, # turn on for live display
+                         display = Base.display, # use nothing to omit displaying.
                          recorder = Recorder()) # records result to video on disk
+```
+To display images in a standalone window with okay performance, consider
+```julia
+using ImageView
+c = imshow(img)
+displayfun = img -> imshow!(c["gui"]["canvas"],img);
+track_blobs(...; display = displayfun)
 ```
 
 ### Visualization etc.

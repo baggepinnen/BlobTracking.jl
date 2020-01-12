@@ -1,16 +1,20 @@
+"""
+A trace is a Vector{CartesianIndex{2}} and additionally supports `draw!, Matrix`. 
+"""
 const Trace = Vector{CartesianIndex{2}}
 
 """
     Blob
 
-Represents a blob. Internally stores a Kalman filter, a counter that is incremented when the blob is not assigned a measurement and a trace of all seen measurements.
+Represents a blob. Internally stores a Kalman filter, a counter that is incremented when the blob is not assigned a measurement and a trace of all locations and all seen measurements. If no measurement was seen for a particular time step, `OOB = CartesianIndex(0,0)` is recorded.
 
-This type supports `location, trace, lifetime, draw!`
+This type supports `location, trace, tracem, lifetime, draw!`
 """
 Base.@kwdef mutable struct Blob
     kf
     counter::Int = 0
     trace::Trace = CartesianIndex{2}[]
+    tracem::Trace = CartesianIndex{2}[]
 end
 
 Base.Broadcast.broadcastable(b::Blob) = Ref(b)
@@ -18,11 +22,18 @@ Base.Broadcast.broadcastable(b::Blob) = Ref(b)
 """
     trace(b::Blob)
 
-Get the measurement trace of a blob
+Get the location trace of a blob. Use `tm = Matrix(t::Trace)` to get an N×2 matrix. Use `tm = replace(Float64.(tm), 0=>NaN)` to create a matrix with NaNs where there were missing measurements, this is useful for plotting since it creates a gap where the missing measurement was.
 """
 trace(b::Blob) = b.trace
-Base.skipmissing(trace::Trace) = filter(!=(OOB), trace)
 
+"""
+    tracem(b::Blob)
+
+Get the measurement trace of a blob. Use `skipmissing(t::Trace)` to filter out missing measurements. Use `tm = Matrix(t::Trace)` to get an N×2 matrix. Use `tm = replace(Float64.(tm), 0=>NaN)` to create a matrix with NaNs where there were missing measurements, this is useful for plotting since it creates a gap where the missing measurement was.
+"""
+tracem(b::Blob) = b.tracem
+Base.skipmissing(trace::Trace) = filter(!=(OOB), trace)
+Base.Matrix(trace::Trace) = [getindex.(trace,1) getindex.(trace,2)]
 
 """
     TrackingResult
@@ -52,6 +63,12 @@ function trace(tr::TrackingResult; minlife=0)
     blobs = allblobs(tr)
     filter!(b->lifetime(b)>=minlife, blobs)
     trace.(blobs)
+end
+
+function tracem(tr::TrackingResult; minlife=0)
+    blobs = allblobs(tr)
+    filter!(b->lifetime(b)>=minlife, blobs)
+    tracem.(blobs)
 end
 
 Base.@kwdef mutable struct BlobTracker
@@ -94,7 +111,7 @@ function Blob(bt::BlobTracker,coord::CartesianIndex)
     kf = KalmanFilter(A,B,C,0,Rw(bt),Re(bt),MvNormal(10Rw(bt)))
     kf.x[1] = coord[1]
     kf.x[2] = coord[2]
-    Blob(kf=kf, trace=[coord])
+    Blob(kf=kf, trace=[coord], tracem=[coord])
 end
 
 """
@@ -105,7 +122,7 @@ Get the location of a blob as CartesianIndex
 Distributions.location(b::Blob) = CartesianIndex(round.(Int,(b.kf.x[1], b.kf.x[2])))
 Distributions.location(b) = b.location
 Distributions.location(b::Tuple) = CartesianIndex(b)
-lifetime(b) = findlast(c->c != OOB, b.trace)
+lifetime(b) = findlast(c->c != OOB, b.tracem)
 
 
 Base.CartesianIndex(blob::Blob) = CartesianIndex((round.(Int,blob.kf.x[1:2])...,))

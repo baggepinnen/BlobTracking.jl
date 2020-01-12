@@ -4,7 +4,7 @@ using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, MultivariateStats
 using JuliennedArrays # For faster median etc.
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, allblobs, draw!
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!
 
 
 """
@@ -102,10 +102,11 @@ function LowLevelParticleFilters.correct!(blobs, measurement::Measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
             ll = correct!(blobs[bi].kf,SVector(measurement.coordinates[ass].I))
-            push!(blobs[bi].trace, measurement.coordinates[ass])
+            push!(blobs[bi].tracem, measurement.coordinates[ass])
         else
-            push!(blobs[bi].trace, OOB)
+            push!(blobs[bi].tracem, OOB)
         end
+        push!(blobs[bi].trace, location(blobs[bi]))
     end
 end
 
@@ -194,11 +195,12 @@ Main entry point to tracking blobs
 #Arguments:
 - `bt`: a BlobTracker
 - `vid`: Some iterable thing that iterates images
-- `display`: should each frame be displayed live?
-- `recorder`: a `Recorder` that can record each frame to a video on disk
-- `threads`: Use threaded processing of frames?
+- `display = Base.display`: function to display images live. Displaying live slows things down a bit. Use `display=nothing` to not display anything. Consider also `c = imshow(img);
+displayfun = img -> imshow!(c["gui"]["canvas"],img); `.
+- `recorder`: an optional `Recorder` that can record each frame to a video on disk. Recording things does not slow things down much and also does not affect memory usage much.
+- `threads`: Use threaded processing of frames? Only useful if Julia is started with multiple threads.
 """
-function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, threads=Threads.nthreads()>1)
+function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, threads=Threads.nthreads()>1)
     result = TrackingResult()
     img,vid = Iterators.peel(vid)
     t1 = Ref{Task}()
