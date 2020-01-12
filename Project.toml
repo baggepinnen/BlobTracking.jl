@@ -31,6 +31,7 @@ Interact = "0.10.3"
 JuliennedArrays = "0.2.2"
 LowLevelParticleFilters = "0.2.2"
 MultivariateStats = "0.7.0"
+StaticArrays = "0.12"
 VideoIO = "0.6.10"
 
 
