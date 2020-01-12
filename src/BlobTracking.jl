@@ -140,49 +140,57 @@ function Workspace(img::AbstractMatrix, n::Int)
 end
 Workspace(img::AbstractMatrix, bt::BlobTracker) = Workspace(img, length(bt.sizes))
 
-function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing)
+function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, threads=Threads.nthreads()>1)
     result = TrackingResult()
     img,vid = Iterators.peel(vid)
     t1 = Ref{Task}()
     t2 = Ref{Task}()
-    vidbuffer = Channel{typeof(img)}(2, spawn=true, taskref=t1) do ch
-        for img in vid
-            put!(ch,img)
+    vidbuffer = if threads
+        Channel{typeof(img)}(2, spawn=true, taskref=t1) do ch
+            for img in vid
+                put!(ch,img)
+            end
         end
+    else
+        vid
     end
-    ws1 = Workspace(img, length(bt.sizes))
-    ws2 = Workspace(img, length(bt.sizes))
+
     ws = Workspace(img, length(bt.sizes))
-    measurement = Measurement(ws1, bt, img, result)
+    measurement = Measurement(ws, bt, img, result)
     spawn_blobs!(result, bt, measurement)
     showblobs(RGB.(Gray.(img)), result, measurement, recorder = recorder, display=display)
 
-    buffer = Channel{Tuple{typeof(img), Trace}}(2, spawn=false, taskref=t2) do ch
-        # for img in vidbuffer
-        #     coords = measure(storage1, bt, img)
-        #     put!(ch, (img, coords))
-        # end
-        while isready(vidbuffer)
-            img1 = take!(vidbuffer)
-            m1 = Threads.@spawn measure(ws1, bt, img1)
-            img2 = nothing
-            if isready(vidbuffer)
-                img2 = take!(vidbuffer)
-                m2 = Threads.@spawn measure(ws2, bt, img2)
-            end
-            put!(ch,(img1, fetch(m1)))
-            if img2 === nothing
-                return
-            else
-                put!(ch,(img2, fetch(m2)))
+    if threads
+        ws1 = Workspace(img, length(bt.sizes))
+        ws2 = Workspace(img, length(bt.sizes))
+        buffer = Channel{Tuple{typeof(img), Trace}}(2, spawn=false, taskref=t2) do ch
+            # for img in vidbuffer
+            #     coords = measure(storage1, bt, img)
+            #     put!(ch, (img, coords))
+            # end
+            while isready(vidbuffer)
+                img1 = take!(vidbuffer)
+                m1 = Threads.@spawn measure(ws1, bt, img1)
+                img2 = nothing
+                if isready(vidbuffer)
+                    img2 = take!(vidbuffer)
+                    m2 = Threads.@spawn measure(ws2, bt, img2)
+                end
+                put!(ch,(img1, fetch(m1)))
+                if img2 === nothing
+                    return
+                else
+                    put!(ch,(img2, fetch(m2)))
+                end
             end
         end
     end
 
     try
-        for (ind,(img,coords)) in enumerate(buffer)
+        for (ind,img) in enumerate(buffer)
             println("Frame $ind")
-            measurement = update!(ws, bt, coords, result)
+            img, coords = img isa Tuple ? img : (img,img)
+            measurement = update!(ws, bt, coords , result)
             showblobs(RGB.(Gray.(img)),result,measurement, rad=6, recorder=recorder, display=display)
         end
     finally
