@@ -1,5 +1,4 @@
 module BlobTracking
-
 using Statistics, LinearAlgebra
 using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, MultivariateStats
@@ -8,11 +7,26 @@ using JuliennedArrays # For faster median etc.
 export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, PCABackground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, allblobs, draw!
 
 
+"""
+    Workspace{T1, T2}
 
-include("framebuffer.jl")
-include("background.jl")
-include("blob.jl")
-include("display.jl")
+Contains buffer arrays that can be resued to minimize allocations
+"""
+struct Workspace{T1,T2}
+    storage::T1
+    blob_storage::T2
+end
+
+"""
+    Workspace(img::AbstractMatrix, n::Int)
+
+Provide example image and length of `bt.sizes`
+"""
+function Workspace(img::AbstractMatrix, n::Int)
+    storage = Gray.(img)
+    blob_storage = Array{Float64}(undef, size(img)..., n)
+    Workspace(storage,blob_storage)
+end
 
 
 const OOB = CartesianIndex(0,0)
@@ -21,6 +35,12 @@ const OOB = CartesianIndex(0,0)
 @inline to_static(a::AbstractVector) = SVector{length(a)}(a)
 
 
+include("framebuffer.jl")
+include("background.jl")
+include("blob.jl")
+include("display.jl")
+
+Workspace(img::AbstractMatrix, bt::BlobTracker) = Workspace(img, length(bt.sizes))
 
 function Base.iterate(vid::VideoIO.VideoReader)
     state = read(vid)
@@ -43,7 +63,7 @@ struct Measurement
     assi
 end
 
-function assign(bt, blobs, coordinates)
+function assign(bt::BlobTracker, blobs, coordinates)
     isempty(blobs) && (return Int[])
     isempty(coordinates) && (return zeros(Int, length(blobs)))
     DM = [dist(bt,b,c) for b in blobs, c in coordinates]
@@ -51,22 +71,33 @@ function assign(bt, blobs, coordinates)
     assi = hungarian((DM))[1]
 end
 
-function Base.filter!(result, bt::BlobTracker, m::Measurement)
+function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement)
     for (bi, ass) in enumerate(m.assi)
         blob = result.blobs[bi]
         if ass == 0 || too_far(bt, blob,m.coordinates[ass]) # penalize not found
             blob.counter += 1
             m.assi[bi] = 0
-            continue
+        else
+            blob.counter = max(0, blob.counter-1) # decrement counter if measurement found
         end
     end
     m
 end
 
+"""
+    predict!(blobs)
+
+Advance all blobs by predicting their next state
+"""
 function LowLevelParticleFilters.predict!(blobs)
     foreach(blob->predict!(blob.kf,0), blobs)
 end
 
+"""
+    correct!(blobs, measurement::Measurement)
+
+Correct the state of the blobs by incorporating the measurement in the Kalman filter
+"""
 function LowLevelParticleFilters.correct!(blobs, measurement::Measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
@@ -81,7 +112,18 @@ end
 LowLevelParticleFilters.predict!(result::TrackingResult) = predict!(result.blobs)
 LowLevelParticleFilters.correct!(result::TrackingResult, measurement::Measurement) = correct!(result.blobs, measurement)
 
-function LowLevelParticleFilters.update!(ws, bt, img, result)
+"""
+    update!(ws::Workspace, bt::BlobTracker, img, result::TrackingResult)
+
+Perform one iteration of predict and correct
+
+#Arguments:
+- `ws`: a Workspace object
+- `bt`: the blob tracker
+- `img`: the image
+- `result`: a `TrackingResult`
+"""
+function LowLevelParticleFilters.update!(ws, bt::BlobTracker, img, result::TrackingResult)
     blobs = result.blobs
     measurement = Measurement(ws, bt, img, result)
     predict!(result)
@@ -92,13 +134,18 @@ function LowLevelParticleFilters.update!(ws, bt, img, result)
     measurement
 end
 
-function spawn_blobs!(result, bt, measurement)
+function spawn_blobs!(result::TrackingResult, bt::BlobTracker, measurement)
     newcoordinds = setdiff(1:length(measurement.coordinates), measurement.assi)
     newblobs = Blob.(bt, measurement.coordinates[newcoordinds])
     append!(result.blobs, newblobs)
 end
 
-function kill_blobs!(result, bt)
+"""
+    kill_blobs!(result::TrackingResult, bt::BlobTracker)
+
+Kill all blobs that have not seen a measurement for the duration `bt.kill_counter_th`
+"""
+function kill_blobs!(result::TrackingResult, bt::BlobTracker)
     blobs,dead = result.blobs, result.dead
     bi = 1
     while bi <= length(blobs)
@@ -111,7 +158,17 @@ function kill_blobs!(result, bt)
     end
 end
 
-function measure(ws, bt::BlobTracker, img)
+"""
+    coordinates = measure(ws::Workspace, bt::BlobTracker, img)
+
+Detect blobs in the image and return the coordinates
+
+#Arguments:
+- `ws`: Workspace
+- `bt`: BlobTracker
+- `img`: image
+"""
+function measure(ws::Workspace, bt::BlobTracker, img)
     prepare_image!(ws,bt,img)
     coordinates = detect_blobs!(ws, bt, img)
     bt.mask === nothing || (coordinates = filter!(c->bt.mask[c] != 0, coordinates))
@@ -129,17 +186,18 @@ function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
     measurement = Measurement(coordinates, assi)
 end
 
-struct Workspace{T1,T2}
-    storage::T1
-    blob_storage::T2
-end
-function Workspace(img::AbstractMatrix, n::Int)
-    storage = Gray.(img)
-    blob_storage = Array{Float64}(undef, size(img)..., n)
-    Workspace(storage,blob_storage)
-end
-Workspace(img::AbstractMatrix, bt::BlobTracker) = Workspace(img, length(bt.sizes))
+"""
+    track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, threads=Threads.nthreads() > 1)
 
+Main entry point to tracking blobs
+
+#Arguments:
+- `bt`: a BlobTracker
+- `vid`: Some iterable thing that iterates images
+- `display`: should each frame be displayed live?
+- `recorder`: a `Recorder` that can record each frame to a video on disk
+- `threads`: Use threaded processing of frames?
+"""
 function track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, threads=Threads.nthreads()>1)
     result = TrackingResult()
     img,vid = Iterators.peel(vid)
