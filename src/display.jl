@@ -31,9 +31,12 @@ Overlay found blobs on `img`
 - `recorder`: an optional `Recorder`
 - `display = Base.display`: function to display image. Use `display=nothing` to not display.
 """
-function showblobs(img::AbstractMatrix{T},result,m;rad=8, recorder=nothing, display=Base.display) where T
+function showblobs(img::AbstractMatrix{T},result,m;rad=8, recorder=nothing, display=Base.display, ignoreempty=false) where T
     # img = copy(img)
     display === nothing && recorder === nothing && return
+    if ignoreempty
+        isempty(result.blobs) && isempty(m.coordinates) && return
+    end
     blobs = result.blobs
     foreach(blobs) do blob
         blobcoord = location(blob)

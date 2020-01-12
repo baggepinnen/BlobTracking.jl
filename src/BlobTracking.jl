@@ -188,7 +188,7 @@ function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
 end
 
 """
-    track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, threads=Threads.nthreads() > 1)
+    track_blobs(bt::BlobTracker, vid; display=false, recorder=nothing, threads=Threads.nthreads() > 1, ignoreempty=false)
 
 Main entry point to tracking blobs
 
@@ -199,8 +199,9 @@ Main entry point to tracking blobs
 displayfun = img -> imshow!(c["gui"]["canvas"],img); `.
 - `recorder`: an optional `Recorder` that can record each frame to a video on disk. Recording things does not slow things down much and also does not affect memory usage much.
 - `threads`: Use threaded processing of frames? Only useful if Julia is started with multiple threads.
+- `ignoreempty=false`: wether or not to ignore display and recording of frames which contains no blobs and no measurements.
 """
-function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, threads=Threads.nthreads()>1)
+function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, threads=Threads.nthreads()>1, ignoreempty=false)
     result = TrackingResult()
     img,vid = Iterators.peel(vid)
     t1 = Ref{Task}()
@@ -251,7 +252,7 @@ function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, th
             println("Frame $ind")
             img, coords = img isa Tuple ? img : (img,img)
             measurement = update!(ws, bt, coords , result)
-            showblobs(RGB.(Gray.(img)),result,measurement, rad=6, recorder=recorder, display=display)
+            showblobs(RGB.(Gray.(img)),result,measurement, rad=6, recorder=recorder, display=display, ignoreempty=ignoreempty)
         end
     finally
         finalize(recorder)

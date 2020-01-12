@@ -93,7 +93,11 @@ draw!(drawimg, traces, c=RGB(0,0,0.5))
 draw!(drawimg, measurement_traces, c=RGB(0.5,0,0))
 ```
 ![window](figs/traces.jpg)
+
 In the image, green dots represent spawning positions and red dots the last obtained measurement for a blob in case of the red measurement traces, and the point at which the blob was killed in case of the blue location traces.
+
+Below is a youtube video showing how it looks
+[![Video illustration](https://img.youtube.com/vi/uKAURHYEWRs/0.jpg)](https://www.youtube.com/watch?v=uKAURHYEWRs)
 
 ## Further documentation
 Most functions have docstrings. Docstrings of types hint at what functions you can call on instances of the type. The types present in this package are
