@@ -18,12 +18,23 @@ using Test, Statistics, ImageDraw, Images, VideoIO
     @testset "FrameBuffer" begin
         @info "Testing FrameBuffer"
         b = FrameBuffer{Float64}(2,2,2)
-        push!(b, randn(2,2))
+        @test length(b) == 0
+        b1 = randn(2,2)
+        push!(b, b1)
+        @test length(b) == 1
+        for f in (median, mean, sum)
+            @test f(b) == f(b.b[:,:,1:1], dims=3)[:,:,1]
+        end
+
         push!(b, randn(2,2))
 
         for f in (median, mean, sum, std, var)
             @test f(b) == f(b.b[:,:,1:2], dims=3)[:,:,1]
         end
+        @test b[1] == b1
+        @test size(Matrix(b)) == (4,2)
+        @test length(b) == 2
+        @test BlobTracking.imgsize(b) == (2,2)
 
     end
 
