@@ -23,6 +23,8 @@ img  = first(vid)
 ```
 ![window](figs/img.jpg)
 
+*this package implements an iterator for VideoIO videos. It only iterates black and white images, even if the original video is in color.*
+
 ### Create a background image
 We create a background image to subtract from each image
 ```julia
@@ -46,7 +48,7 @@ mask[end-50:end,:] .= 0
 ![window](figs/mask.png)
 
 ### Preprocessing
-For the tracking to work well, it's important that we feed the tracker nice and clean images. An example of a pre-processing function looks like this
+For the tracking to work well, it's important that we feed the tracker nice and clean images. An example of a pre-processing function looks like this, it takes a storage array you can operate on in-place and the image to pre-process.
 ```julia
 function preprocessor(storage, img)
     storage .= Float32.(img)
@@ -59,11 +61,12 @@ Notice how the tree contours are still present in this image? This is okay since
 ### Run tracking
 We now create the `BlobTracker` and run the tracking. If we don't know an appropriate value for the `sizes` vector that determines the size scales of the blobs, we may call the function `tune_sizes` to get a small GUI with a slider to help us out (works in Juno and IJulia). The length of `sizes` has a large impact on the time it takes to process each frame since the majority of the processing time is taken up by the blob detection.
 ```julia
-bt = BlobTracker(sizes=3:3, mask=mask,preprocessor=preprocessor,
-                                        amplitude_th = 0.05,
-                                        dist_th = 2, # Number of sigmas away from a predicted location a measurement is accepted.
-                                        σw = 2.0, # Dynamics noise std.
-                                        σe = 10.0)  # Measurement noise std. (pixels)
+bt = BlobTracker(sizes=3:3, mask=mask,
+                            preprocessor = preprocessor,
+                            amplitude_th = 0.05,
+                            dist_th = 2, # Number of sigmas away from a predicted location a measurement is accepted.
+                            σw = 2.0, # Dynamics noise std.
+                            σe = 10.0)  # Measurement noise std. (pixels)
 tune_sizes(bt, img)
 
 result = track_blobs(bt, vid,
@@ -77,11 +80,26 @@ c = imshow(img)
 displayfun = img -> imshow!(c["gui"]["canvas"],img);
 track_blobs(...; display = displayfun)
 ```
+Blobs are shown in blue, newly spawned blobs are show in green and measurements are shown in red.If everything is working well, most blue dots should have a red dot inside or very nearby. If the blue blobs are lagging behind the red dots, the filter needs tuning by either decreasing the measurement variance or increasing the dynamics variance. If blue dots shoot off rapidly whenever measurements are lost, the dynamics variance should be decreased.
+
 
 ### Visualization etc.
 
 ```julia
 traces = trace(result, minlife=5) # Filter minimum lifetime of 5
-draw!(RGB.(img), traces)
+measurement_traces = tracem(result, minlife=5)
+drawimg = RGB.(img)
+draw!(drawimg, traces, c=RGB(0,0,0.5))
+draw!(drawimg, measurement_traces, c=RGB(0.5,0,0))
 ```
 ![window](figs/traces.jpg)
+
+## Further documentation
+Most functions have docstrings. Docstrings of types hints at what functions you can call on instances of the type. The types present in this package are
+- `Blob`
+- `BlobTracker`
+- `TrackingResult`
+- `Trace`
+- `Recorder`
+- `FrameBuffer`
+- `Workspace`
