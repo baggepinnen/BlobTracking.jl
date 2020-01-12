@@ -18,6 +18,9 @@ mutable struct FrameBuffer{T}
         push!(fb, img)
         fb
     end
+    function FrameBuffer(buffer::Array{T,3}) where T
+        fb = new{T}(buffer, 0, true)
+    end
     function FrameBuffer{T}(w::Int,h::Int,d::Int) where T
         new{T}(Array{T,3}(undef,w,h,d), 0, false)
     end
@@ -69,6 +72,20 @@ for f in (median, mean, sum, std, var, reshape, size)
             return map($fs, Slices(b.b, 3))
         else
             return dropdims($fs(@view(b.b[:,:,1:b.c]), args..., dims=3), dims=3)
+        end
+    end
+end
+
+
+for f in (diff,)
+    m = parentmodule(f)
+    fs = nameof(f)
+    @eval function $m.$fs(b::FrameBuffer{T}, args...) where T
+        if b.full
+            return FrameBuffer($fs(b.b, args..., dims=3))
+            # return map($fs, Slices(b.b, 3))
+        else
+            return FrameBuffer($fs(@view(b.b[:,:,1:b.c]), args..., dims=3))
         end
     end
 end

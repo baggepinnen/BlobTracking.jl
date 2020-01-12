@@ -1,5 +1,5 @@
 """
-A trace is a Vector{CartesianIndex{2}} and additionally supports `draw!, Matrix`. 
+A trace is a Vector{CartesianIndex{2}} and additionally supports `draw!, Matrix`.
 """
 const Trace = Vector{CartesianIndex{2}}
 
@@ -78,7 +78,7 @@ Base.@kwdef mutable struct BlobTracker
     amplitude_th = 0.0001
     kill_counter_th::Int = 10
     sizes
-    preprocessor = threshold(0.35)
+    preprocessor = identity
     distance::Type{<:PreMetric} = Mahalanobis
     mask = nothing
 end

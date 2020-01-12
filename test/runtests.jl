@@ -36,6 +36,10 @@ using Test, Statistics, ImageDraw, Images, VideoIO
         @test length(b) == 2
         @test BlobTracking.imgsize(b) == (2,2)
 
+        db = diff(b)
+        @test length(db) == 1
+        @test db.b == diff(b.b, dims=3)
+
     end
 
     # @testset "Background extraction" begin
