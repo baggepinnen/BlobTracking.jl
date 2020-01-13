@@ -32,9 +32,16 @@ using Test, Statistics, ImageDraw, Images, VideoIO
         @info "Testing FrameBuffer"
         b = FrameBuffer{Float64}(2,2,2)
         @test length(b) == 0
+        @test !isready(b)
+        @test_throws BoundsError b[1]
+        @test_throws BoundsError b[1,1,1]
         b1 = randn(2,2)
         push!(b, b1)
         @test length(b) == 1
+        @test isready(b)
+        @test b[1] == b1
+        @test b[1,1,1] == b1[1,1]
+        @test length(collect(b)) == 1
         for f in (median, mean, sum)
             @test f(b) == f(b.b[:,:,1:1], dims=3)[:,:,1]
         end
@@ -47,6 +54,7 @@ using Test, Statistics, ImageDraw, Images, VideoIO
         @test b[1] == b1
         @test size(Matrix(b)) == (4,2)
         @test length(b) == 2
+        @test length(collect(b)) == 2
         @test BlobTracking.imgsize(b) == (2,2)
 
         db = diff(b)
