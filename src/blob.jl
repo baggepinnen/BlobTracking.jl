@@ -78,7 +78,7 @@ Base.@kwdef mutable struct BlobTracker
     amplitude_th = 0.0001
     kill_counter_th::Int = 10
     sizes
-    preprocessor = identity
+    preprocessor = (storage,img)-> (storage .= Gray.(img))
     distance::Type{<:PreMetric} = Mahalanobis
     mask = nothing
 end
