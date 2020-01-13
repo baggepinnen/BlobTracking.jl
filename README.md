@@ -108,4 +108,5 @@ Most functions have docstrings. Docstrings of types hint at what functions you c
 - `Recorder`
 - `FrameBuffer`
 - `MedianBackground`
+- `DiffBackground`
 - `Workspace`

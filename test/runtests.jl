@@ -52,12 +52,18 @@ using Test, Statistics, ImageDraw, Images, VideoIO
         @testset "MedianBackground" begin
             @info "Testing MedianBackground"
             be = MedianBackground(img,3)
-            # update!(be, img)
             update!(be, img2)
             update!(be, img3)
             @test BlobTracking.background(be, img) == 0 .* img
             @test BlobTracking.foreground(be, img) == img
+        end
 
+        @testset "DiffBackground" begin
+            @info "Testing DiffBackground"
+            be = DiffBackground(img)
+            update!(be, img2)
+            @test imadjustintensity(BlobTracking.background(be, img)) == complement.(img)
+            @test imadjustintensity(BlobTracking.foreground(be, img)) == img
         end
     end
 

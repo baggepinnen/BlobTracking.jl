@@ -21,11 +21,11 @@ MedianBackground(args...) = MedianBackground(FrameBuffer(args...))
 
 
 """
-    background(be::MedianBackground, img)
+    background(be::MedianBackground)
 
 Extract the background of `img`.
 """
-function background(be::MedianBackground, img)
+function background(be::MedianBackground, img=nothing)
     median(be.fb)
 end
 
@@ -36,6 +36,42 @@ Extract the foreground of `img`.
 """
 function foreground(be::MedianBackground, img)
     img - background(be, img)
+end
+
+
+
+
+
+
+"""
+    DiffBackground{T} <: BackgroundExtractor
+
+Models the background of a sequence of images as the diff between two consequtive images.
+
+This type supports `background, foreground, update!`
+"""
+struct DiffBackground{T} <: BackgroundExtractor
+    fb::FrameBuffer{T}
+end
+DiffBackground(img) = DiffBackground(FrameBuffer(img, 2))
+
+
+"""
+    background(be::DiffBackground, img)
+
+Extract the background of `img`.
+"""
+function background(be::DiffBackground, img)
+    dropdims(diff(be.fb).b, dims=3) .* img
+end
+
+"""
+    foreground(be::DiffBackground, img)
+
+Extract the foreground of `img`.
+"""
+function foreground(be::DiffBackground, img)
+    dropdims(complement.(diff(be.fb).b), dims=3) .* img
 end
 
 
