@@ -107,4 +107,5 @@ Most functions have docstrings. Docstrings of types hint at what functions you c
 - `Trace`
 - `Recorder`
 - `FrameBuffer`
+- `MedianBackground`
 - `Workspace`

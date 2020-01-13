@@ -11,9 +11,14 @@ using Test, Statistics, ImageDraw, Images, VideoIO
     draw!(img,locs[2], c=Gray(1.0))
 
     img2 = Gray.(zeros(100,100))
-    locs2 = [CartesianIndex(12,12), CartesianIndex(32,32)]
+    locs2 = [CartesianIndex(15,15), CartesianIndex(35,35)]
     draw!(img2,locs2[1], c=Gray(1.0))
     draw!(img2,locs2[2], c=Gray(1.0))
+
+    img3 = Gray.(zeros(100,100))
+    locs3 = [CartesianIndex(20,20), CartesianIndex(40,40)]
+    draw!(img3,locs3[1], c=Gray(1.0))
+    draw!(img3,locs3[2], c=Gray(1.0))
 
     @testset "FrameBuffer" begin
         @info "Testing FrameBuffer"
@@ -42,13 +47,19 @@ using Test, Statistics, ImageDraw, Images, VideoIO
 
     end
 
-    # @testset "Background extraction" begin
-    #     @info "Testing Background extraction"
-    #     @testset "MedianBackground" begin
-    #         @info "Testing MedianBackground"
-    #         be = MedianBackground(randn(2,2),2)
-    #     end
-    # end
+    @testset "Background extraction" begin
+        @info "Testing Background extraction"
+        @testset "MedianBackground" begin
+            @info "Testing MedianBackground"
+            be = MedianBackground(img,3)
+            # update!(be, img)
+            update!(be, img2)
+            update!(be, img3)
+            @test BlobTracking.background(be, img) == 0 .* img
+            @test BlobTracking.foreground(be, img) == img
+
+        end
+    end
 
 
     @testset "Tracking" begin
