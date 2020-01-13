@@ -52,11 +52,6 @@ function Base.iterate(vid::VideoIO.VideoReader, state)
     (Gray.(state)),state
 end
 
-threshold(th::Number) =  (storage, img) -> threshold!(storage, img, th)
-threshold!(storage, img, th) = storage .= Gray.(Float32.(Gray.(img) .> th))
-
-invthreshold(th::Number) =  (storage, img) -> invthreshold!(storage, img, th)
-invthreshold!(storage, img, th) = storage .= Gray.(Float32.(Gray.(img) .< th))
 
 struct Measurement
     coordinates
