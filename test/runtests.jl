@@ -1,7 +1,7 @@
 # using Pkg
 # pkg"activate /home/fredrikb/.julia/dev/BlobTracking/"
 using BlobTracking
-using Test, Statistics, ImageDraw, Images, VideoIO
+using Test, Statistics, ImageDraw, Images, VideoIO, StaticArrays
 
 @testset "BlobTracking.jl" begin
 
