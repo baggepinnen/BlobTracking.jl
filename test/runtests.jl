@@ -146,5 +146,13 @@ using Test, Statistics, ImageDraw, Images, VideoIO
         vid = VideoIO.openvideo(io)
         frame1 = first(vid)
         @test size(frame1) == size(img)
+
+
+        @testset "tune_sizes" begin
+            @info "Testing tune_sizes"
+            bt = BlobTracker(sizes=2:2)
+            tune_sizes(bt,img)
+
+        end
     end
 end
