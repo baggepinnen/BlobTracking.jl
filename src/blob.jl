@@ -71,15 +71,14 @@ function tracem(tr::TrackingResult; minlife=0)
     tracem.(blobs)
 end
 
-Base.@kwdef mutable struct BlobTracker
+Base.@kwdef mutable struct BlobTracker{T<:AbstractCorrespondence}
     σw = 15.0
     σe = 5.0
-    dist_th = 20
     amplitude_th = 0.0001
     kill_counter_th::Int = 10
     sizes
     preprocessor = (storage,img)-> (storage .= Gray.(img))
-    distance::Type{<:PreMetric} = Mahalanobis
+    correspondence::T = HungarianCorrespondence(p=1.0, dist_th=2)
     mask = nothing
 end
 
@@ -128,11 +127,11 @@ lifetime(b) = findlast(c->c != OOB, b.tracem)
 Base.CartesianIndex(blob::Blob) = CartesianIndex((round.(Int,blob.kf.x[1:2])...,))
 
 """
-    dist(bt::BlobTracker, blob, c)
+    dist(blob, c)
 
 Measure the distance between a blob and a coordinate `c` using the Mahalanobis distance induced the the blobs measurement covariance
 """
-function dist(bt::BlobTracker, blob, c)
+function dist(blob, c)
     k = blob.kf
     d = Mahalanobis(inv(k.C*covariance(k)*k.C'))
     v1 = SVector(c.I)
@@ -141,7 +140,7 @@ function dist(bt::BlobTracker, blob, c)
     # sqrt((c[1]-blob.kf.x[1])^2 + (c[2]-blob.kf.x[2])^2)
 end
 
-too_far(bt::BlobTracker,blob,coord) = dist(bt, blob, coord) > bt.dist_th
+too_far(c::AbstractCorrespondence,blob,coord) = dist(blob, coord) > c.dist_th
 
 
 function detect_blobs!(ws::Workspace, bt::BlobTracker, img)

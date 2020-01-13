@@ -2,23 +2,25 @@
 # pkg"activate /home/fredrikb/.julia/dev/BlobTracking/"
 using BlobTracking
 using Test, Statistics, ImageDraw, Images, VideoIO, StaticArrays
+img = Gray.(zeros(100,100))
+locs = [CartesianIndex(10,10), CartesianIndex(30,30)]
+draw!(img,locs[1], c=Gray(1.0))
+draw!(img,locs[2], c=Gray(1.0))
 
+img2 = Gray.(zeros(100,100))
+locs2 = [CartesianIndex(15,15), CartesianIndex(35,35)]
+draw!(img2,locs2[1], c=Gray(1.0))
+draw!(img2,locs2[2], c=Gray(1.0))
+
+img3 = Gray.(zeros(100,100))
+locs3 = [CartesianIndex(20,20), CartesianIndex(40,40)]
+draw!(img3,locs3[1], c=Gray(1.0))
+draw!(img3,locs3[2], c=Gray(1.0))
+
+
+##
 @testset "BlobTracking.jl" begin
 
-    img = Gray.(zeros(100,100))
-    locs = [CartesianIndex(10,10), CartesianIndex(30,30)]
-    draw!(img,locs[1], c=Gray(1.0))
-    draw!(img,locs[2], c=Gray(1.0))
-
-    img2 = Gray.(zeros(100,100))
-    locs2 = [CartesianIndex(15,15), CartesianIndex(35,35)]
-    draw!(img2,locs2[1], c=Gray(1.0))
-    draw!(img2,locs2[2], c=Gray(1.0))
-
-    img3 = Gray.(zeros(100,100))
-    locs3 = [CartesianIndex(20,20), CartesianIndex(40,40)]
-    draw!(img3,locs3[1], c=Gray(1.0))
-    draw!(img3,locs3[2], c=Gray(1.0))
 
     @testset "to_static" begin
         @info "Testing to_static"
@@ -27,6 +29,50 @@ using Test, Statistics, ImageDraw, Images, VideoIO, StaticArrays
         @test to_static(randn(2)) isa SVector{2}
 
     end
+
+    @testset "Correspondence" begin
+        @info "Testing Correspondence"
+
+        @testset "NearestNeighborCorrespondence" begin
+            @info "Testing NearestNeighborCorrespondence"
+            bt = BlobTracker(sizes=2:2)
+            coordinates = locs
+            blobs = Blob.(bt, coordinates)
+            c = NearestNeighborCorrespondence(dist_th = 2)
+
+            assi = BlobTracking.assign(c, blobs, coordinates)
+            @test assi == [1,2]
+
+            assi = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test assi == [2,3]
+
+            assi = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test assi == [1,2,1,2]
+
+        end
+
+
+        @testset "HungarianCorrespondence" begin
+            @info "Testing HungarianCorrespondence"
+            bt = BlobTracker(sizes=2:2)
+            coordinates = locs
+            blobs = Blob.(bt, coordinates)
+            c = HungarianCorrespondence(dist_th = 2)
+
+            assi = BlobTracking.assign(c, blobs, coordinates)
+            @test assi == [1,2]
+
+            assi = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test assi == [2,3]
+
+            assi = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test assi == [1,2,0,0]
+
+        end
+
+    end
+
+
 
     @testset "FrameBuffer" begin
         @info "Testing FrameBuffer"

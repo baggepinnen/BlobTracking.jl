@@ -1,11 +1,12 @@
 module BlobTracking
 using Statistics, LinearAlgebra
 using Images, ImageFiltering, ImageDraw, VideoIO
-using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact
+using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, NearestNeighbors
 using JuliennedArrays # For faster median etc.
 
 export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static
 
+export AbstractCorrespondence, HungarianCorrespondence, NearestNeighborCorrespondence
 
 """
     Workspace{T1, T2}
@@ -33,11 +34,15 @@ const OOB = CartesianIndex(0,0)
 @inline to_static(a::Number) = a
 @inline to_static(a::AbstractMatrix) = SMatrix{size(a)...}(a)
 @inline to_static(a::AbstractVector) = SVector{length(a)}(a)
+@inline to_static(a::CartesianIndex{2}) = SVector{2}(a.I)
 
 
+
+include("correspondence_types.jl")
 include("framebuffer.jl")
 include("background.jl")
 include("blob.jl")
+include("correspondence.jl")
 include("display.jl")
 
 Workspace(img::AbstractMatrix, bt::BlobTracker) = Workspace(img, length(bt.sizes))
@@ -58,18 +63,12 @@ struct Measurement
     assi
 end
 
-function assign(bt::BlobTracker, blobs, coordinates)
-    isempty(blobs) && (return Int[])
-    isempty(coordinates) && (return zeros(Int, length(blobs)))
-    DM = [dist(bt,b,c) for b in blobs, c in coordinates]
-    # DM[DM .> bt.dist_th] .= 100000
-    assi = hungarian((DM))[1]
-end
+
 
 function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement)
     for (bi, ass) in enumerate(m.assi)
         blob = result.blobs[bi]
-        if ass == 0 || too_far(bt, blob,m.coordinates[ass]) # penalize not found
+        if ass == 0 || too_far(bt.correspondence, blob,m.coordinates[ass]) # penalize not found
             blob.counter += 1
             m.assi[bi] = 0
         else
@@ -173,12 +172,12 @@ end
 
 function Measurement(ws, bt::BlobTracker, img::AbstractMatrix, result)
     coordinates = measure(ws, bt, img)
-    assi = assign(bt, result.blobs, coordinates)
+    assi = assign(bt.correspondence, result.blobs, coordinates)
     measurement = Measurement(coordinates, assi)
 end
 
 function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
-    assi = assign(bt, result.blobs, coordinates)
+    assi = assign(bt.correspondence, result.blobs, coordinates)
     measurement = Measurement(coordinates, assi)
 end
 

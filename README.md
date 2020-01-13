@@ -28,11 +28,11 @@ img  = first(vid)
 ### Create a background image
 We create a background image to subtract from each image
 ```julia
-fb   = FrameBuffer(img, 4) # A buffer of 4 frames
-foreach(1:3) do i # Populate the buffer
-    push!(fb,first(vid))
+medbg = MedianBackground(Float32.(img), 4) # A buffer of 4 frames
+foreach(1:4) do i # Populate the buffer
+    update!(medbg,Float32.(first(vid)))
 end
-background = median(fb)
+bg = background(medbg)
 ```
 
 
@@ -41,7 +41,7 @@ If you want to detect birds (blobs) in the entire image, you can skip this step.
 
 A mask is a binary image that is true where you want to be able to detect blobs and false where you want to ignore.
 ```julia
-mask = (median(fb) .> 0.4) |> reduce(∘, fill(erode, 30)) |> reduce(∘, fill(dilate, 20))
+mask = (bg .> 0.4) |> reduce(∘, fill(erode, 30)) |> reduce(∘, fill(dilate, 20))
 mask[:,1190:end] .= 0
 mask[end-50:end,:] .= 0
 ```
@@ -52,7 +52,8 @@ For the tracking to work well, it's important that we feed the tracker nice and 
 ```julia
 function preprocessor(storage, img)
     storage .= Float32.(img)
-    storage .= Float32.(abs.(storage .- background) .> 0.3)
+    update!(medbg, storage) # update the background model
+    storage .= Float32.(abs.(storage .- background(medbg)) .> 0.4) # You can save some computation by not calculating a new background image every sample
 end
 ```
 ![window](figs/pre.png)
@@ -61,12 +62,13 @@ Notice how the tree contours are still present in this image? This is okay since
 ### Run tracking
 We now create the `BlobTracker` and run the tracking. If we don't know an appropriate value for the `sizes` vector that determines the size scales of the blobs, we may call the function `tune_sizes` to get a small GUI with a slider to help us out (works in Juno and IJulia). The length of `sizes` has a large impact on the time it takes to process each frame since the majority of the processing time is taken up by the blob detection.
 ```julia
-bt = BlobTracker(sizes=3:3, mask=mask,
-                            preprocessor = preprocessor,
-                            amplitude_th = 0.05,
-                            dist_th = 2, # Number of sigmas away from a predicted location a measurement is accepted.
-                            σw = 2.0, # Dynamics noise std.
-                            σe = 10.0)  # Measurement noise std. (pixels)
+bt = BlobTracker(sizes=3:3,
+                mask=mask,
+                preprocessor = preprocessor,
+                amplitude_th = 0.05,
+                correspondence = HungarianCorrespondence(p=1.0, dist_th=2), # dist_th is the number of sigmas away from a predicted location a measurement is accepted.
+                σw = 2.0, # Dynamics noise std.
+                σe = 10.0)  # Measurement noise std. (pixels)
 tune_sizes(bt, img)
 
 result = track_blobs(bt, vid,
@@ -101,12 +103,16 @@ Below is a youtube video showing how it looks
 
 ## Further documentation
 Most functions have docstrings. Docstrings of types hint at what functions you can call on instances of the type. The types present in this package are
-- `Blob`
-- `BlobTracker`
-- `TrackingResult`
-- `Trace`
-- `Recorder`
-- `FrameBuffer`
-- `MedianBackground`
-- `DiffBackground`
-- `Workspace`
+- `Blob` represents a Blob, contains traces of locations and measurements as well as the Kalman filter
+- `BlobTracker` contains parameters for the tracking and correspondence matching
+- `AbstractCorrespondence`
+    - `HungarianCorrespondence` matches blobs to measurements using the Hungarian algorithm
+    - `NearestNeighborCorrespondence` matches blobs to the nearest measurement
+- `TrackingResult` contains lists of dead and alive blobs
+- `Trace` is a list of coordinates
+- `Recorder` records movies and saves them on disk
+- `FrameBuffer` stores frames for temporal processing
+- `BackgroundExtractor`
+    - `MedianBackground` models the background of an image
+    - `DiffBackground` models the background of an image
+- `Workspace` is used internally
