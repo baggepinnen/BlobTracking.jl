@@ -20,6 +20,14 @@ using Test, Statistics, ImageDraw, Images, VideoIO
     draw!(img3,locs3[1], c=Gray(1.0))
     draw!(img3,locs3[2], c=Gray(1.0))
 
+    @testset "to_static" begin
+        @info "Testing to_static"
+        @test to_static(1) == 1
+        @test to_static(randn(2,2)) isa SMatrix{2,2}
+        @test to_static(randn(2)) isa SVector{2}
+
+    end
+
     @testset "FrameBuffer" begin
         @info "Testing FrameBuffer"
         b = FrameBuffer{Float64}(2,2,2)
