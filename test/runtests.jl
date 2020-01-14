@@ -35,7 +35,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
         @testset "NearestNeighborCorrespondence" begin
             @info "Testing NearestNeighborCorrespondence"
-            bt = BlobTracker(sizes=2:2)
+            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
             coordinates = locs
             blobs = Blob.(bt, coordinates)
             c = NearestNeighborCorrespondence(dist_th = 2)
@@ -54,7 +54,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
         @testset "HungarianCorrespondence" begin
             @info "Testing HungarianCorrespondence"
-            bt = BlobTracker(sizes=2:2)
+            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
             coordinates = locs
             blobs = Blob.(bt, coordinates)
             c = HungarianCorrespondence(dist_th = 2)
@@ -132,7 +132,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
     @testset "Tracking" begin
         @info "Testing Tracking"
-        bt = BlobTracker(sizes=2:2)
+        bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
         result = TrackingResult()
         ws = BlobTracking.Workspace(img, bt)
         BlobTracking.prepare_image!(ws,bt,img)
@@ -183,7 +183,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
         @testset "track_blobs" begin
             @info "Testing track_blobs"
-            bt = BlobTracker(sizes=2:2)
+            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
             result = track_blobs(bt,[img,img2])
 
             @test result.blobs[1].tracem[1] == locs[1]
@@ -194,7 +194,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
     end
     @testset "display" begin
         @info "Testing display"
-        bt = BlobTracker(sizes=2:2)
+        bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
         recorder = Recorder()
         result = track_blobs(bt,[N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2))], display=img->println("displaying image"), recorder=recorder)
         traces =  trace(result, minlife=2)
@@ -212,7 +212,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
         @testset "tune_sizes" begin
             @info "Testing tune_sizes"
-            bt = BlobTracker(sizes=2:2)
+            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
             tune_sizes(bt,img)
 
         end

@@ -63,8 +63,6 @@ struct Measurement
     assi
 end
 
-
-
 function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement)
     for (bi, ass) in enumerate(m.assi)
         blob = result.blobs[bi]
@@ -131,7 +129,7 @@ end
 
 function spawn_blobs!(result::TrackingResult, bt::BlobTracker, measurement)
     newcoordinds = setdiff(1:length(measurement.coordinates), measurement.assi)
-    newblobs = Blob.(bt, measurement.coordinates[newcoordinds])
+    newblobs = Blob.(bt.params, measurement.coordinates[newcoordinds])
     append!(result.blobs, newblobs)
 end
 

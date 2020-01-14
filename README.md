@@ -105,6 +105,7 @@ Below is a youtube video showing how it looks
 Most functions have docstrings. Docstrings of types hint at what functions you can call on instances of the type. The types present in this package are
 - `Blob` represents a Blob, contains traces of locations and measurements as well as the Kalman filter
 - `BlobTracker` contains parameters for the tracking and correspondence matching
+- `KalmanParams` stores the variance parameters for the KalmanFilter.
 - `AbstractCorrespondence`
     - `HungarianCorrespondence` matches blobs to measurements using the Hungarian algorithm
     - `NearestNeighborCorrespondence` matches blobs to the nearest measurement

@@ -71,15 +71,46 @@ function tracem(tr::TrackingResult; minlife=0)
     tracem.(blobs)
 end
 
+struct KalmanParams
+    σw::Float64
+    σe::Float64
+end
+
+"""
+    BlobTracker{T <: AbstractCorrespondence}
+
+Example `bt = BlobTracker(sizes=3:5, σw=2.0, σe = 10.0)`
+
+# Optional Keyword arguments:
+- `params::KalmanParams`: Holds the parameters for the kalman filter `σw,σe`
+- `amplitude_th = 0.0001`: blobs must be at least this prominent to be considered
+- `kill_counter_th::Int = 10`: after this many steps without an assigned measurement a blob will die
+- `sizes::AbstractVector`: vector of numbers determining the size scales at which blobs are detected. See docs for [`Images.blob_LoG`](@ref).
+- `preprocessor = ((storage, img)->nothing` a function that processes `img` and stores the result in `storage`
+- `correspondence::AbstractCorrespondence = HungarianCorrespondence(p=1.0, dist_th=2)`: Determines how blobs are assigned to measurements
+- `mask = nothing`: An optional boolean image that is false where you want to ignore blobs and true where you want to track them.
+"""
 Base.@kwdef mutable struct BlobTracker{T<:AbstractCorrespondence}
-    σw = 15.0
-    σe = 5.0
+    params::KalmanParams
     amplitude_th = 0.0001
     kill_counter_th::Int = 10
-    sizes
+    sizes::AbstractVector
     preprocessor = (storage,img)-> (storage .= Gray.(img))
     correspondence::T = HungarianCorrespondence(p=1.0, dist_th=2)
     mask = nothing
+end
+
+"""
+    BlobTracker(; sizes, σw, σe)
+
+Helper constructor that accepts keyword arguments for the `KalmanParams`
+
+#Arguments:
+- `σw`: Dynamics standard deviation
+- `σe`: Measurement standard deviation
+"""
+function BlobTracker(;σw, σe, kwargs...)
+    BlobTracker(;params = KalmanParams(σw, σe), kwargs...)
 end
 
 Base.Broadcast.broadcastable(b::BlobTracker) = Ref(b)
@@ -97,17 +128,17 @@ Rw(σw) =  [dt^4/4 0 dt^3/2 0;
     dt^3/2 0 dt^2 0;
     0 dt^3/2 0 dt^2].*σw^2 + 1e-6I
 
-Re(bt::BlobTracker) = Re(bt.σe)
-Rw(bt::BlobTracker) = Rw(bt.σw)
+Re(params::KalmanParams) = Re(params.σe)
+Rw(params::KalmanParams) = Rw(params.σw)
 
 
 """
-    Blob(bt::BlobTracker, coord::CartesianIndex)
+    Blob(params::KalmanParams, coord::CartesianIndex)
 
-Spawn a blob using settings from `bt` at given coordinates.
+Spawn a blob using settings from `params` at given coordinates.
 """
-function Blob(bt::BlobTracker,coord::CartesianIndex)
-    kf = KalmanFilter(A,B,C,0,Rw(bt),Re(bt),MvNormal(10Rw(bt)))
+function Blob(params::KalmanParams,coord::CartesianIndex)
+    kf = KalmanFilter(A,B,C,0,Rw(params),Re(params),MvNormal(10Rw(params)))
     kf.x[1] = coord[1]
     kf.x[2] = coord[2]
     Blob(kf=kf, trace=[coord], tracem=[coord])
