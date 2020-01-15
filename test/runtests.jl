@@ -1,5 +1,5 @@
-using Pkg
-pkg"activate /home/fredrikb/.julia/dev/BlobTracking/"
+# using Pkg
+# pkg"activate /home/fredrikb/.julia/dev/BlobTracking/"
 using BlobTracking
 using Test, Statistics, ImageDraw, Images, VideoIO, StaticArrays
 img = Gray.(zeros(100,100))
