@@ -172,13 +172,11 @@ end
 
 function Measurement(ws, bt::BlobTracker, img::AbstractMatrix, result)
     coordinates = measure(ws, bt, img)
-    assi = assign(bt.correspondence, result.blobs, coordinates)
-    measurement = Measurement(coordinates, assi)
+    measurement = assign(bt.correspondence, result.blobs, coordinates)
 end
 
 function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
-    assi = assign(bt.correspondence, result.blobs, coordinates)
-    measurement = Measurement(coordinates, assi)
+    measurement = assign(bt.correspondence, result.blobs, coordinates)
 end
 
 """
