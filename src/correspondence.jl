@@ -19,6 +19,7 @@ function assign(c::HungarianCorrespondence, blobs, coordinates)
     DM = [dist(b,c)^p for b in blobs, c in coordinates]
     # DM[DM .> bt.dist_th] .= 100000
     assi = hungarian((DM))[1]
+    measurement = Measurement(coordinates, assi)
 end
 
 function assign(c::NearestNeighborCorrespondence, blobs, coordinates)
@@ -35,4 +36,5 @@ function assign(c::NearestNeighborCorrespondence, blobs, coordinates)
         assi[bi] = I[]
     end
     assi
+    measurement = Measurement(coordinates, assi)
 end
