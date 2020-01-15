@@ -109,6 +109,7 @@ Most functions have docstrings. Docstrings of types hint at what functions you c
 - `AbstractCorrespondence`
     - `HungarianCorrespondence` matches blobs to measurements using the Hungarian algorithm
     - `NearestNeighborCorrespondence` matches blobs to the nearest measurement
+    - `MCCorrespondence` uses Monte Carlo integration over the filtering distribution of the blobs and matches blobs to measurements several times using the chosen inner `AbstractCorrespondence`.
 - `TrackingResult` contains lists of dead and alive blobs
 - `Trace` is a list of coordinates
 - `Recorder` records movies and saves them on disk

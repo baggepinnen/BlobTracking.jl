@@ -30,6 +30,28 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
     end
 
+    @testset "Blob" begin
+        @info "Testing Blob"
+        b = Blob()
+        blobs = [b]
+        corr = HungarianCorrespondence(dist_th = 2)
+        measurement = BlobTracking.assign(corr, blobs, locs)
+        BlobTracking.correct!(blobs, measurement)
+        pos1 = to_static(location(b))
+        @test all(to_static(location(b)) .> 0)
+        @test all(to_static(location(b)) .< to_static(locs[1]))
+
+
+        b = Blob()
+        blobs = [b]
+        corr = MCCorrespondence(HungarianCorrespondence(dist_th = 2), 20)
+        measurement = BlobTracking.assign(corr, blobs, locs)
+        BlobTracking.correct!(blobs, measurement)
+        pos2 = to_static(location(b))
+        @test pos1 == pos2
+
+    end
+
     @testset "Correspondence" begin
         @info "Testing Correspondence"
 
@@ -67,6 +89,27 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
             meas = BlobTracking.assign(c, [blobs; blobs], coordinates)
             @test meas.assi == [1,2,0,0]
+
+        end
+
+        @testset "MCCorrespondence" begin
+            @info "Testing MCCorrespondence"
+            bt = BlobTracker(2:2, 10, 5.0)
+            coordinates = locs
+            blobs = Blob.(bt.params, coordinates)
+            c = MCCorrespondence()
+
+            meas = BlobTracking.assign(c, blobs, coordinates)
+            @test median(meas[i].assi[1] for i in eachindex(meas)) == 1
+            @test median(meas[i].assi[2] for i in eachindex(meas)) == 2
+
+            meas = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test median(meas[i].assi[1] for i in eachindex(meas)) == 2
+            @test median(meas[i].assi[2] for i in eachindex(meas)) == 3
+
+            meas = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test median(meas[i].assi[1] for i in eachindex(meas)) <= 1
+            @test median(meas[i].assi[2] for i in eachindex(meas)) <= 2
 
         end
 
@@ -209,6 +252,9 @@ draw!(img3,locs3[2], c=Gray(1.0))
         frame1 = first(vid)
         @test size(frame1) == size(img)
 
+        if isfile(recorder.filename)
+            rm(recorder.filename)
+        end
 
         @testset "tune_sizes" begin
             @info "Testing tune_sizes"

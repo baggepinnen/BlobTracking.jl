@@ -6,7 +6,7 @@ using JuliennedArrays # For faster median etc.
 
 export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static
 
-export AbstractCorrespondence, HungarianCorrespondence, NearestNeighborCorrespondence
+export AbstractCorrespondence, HungarianCorrespondence, NearestNeighborCorrespondence, MCCorrespondence
 
 """
     Workspace{T1, T2}
@@ -42,6 +42,7 @@ include("correspondence_types.jl")
 include("framebuffer.jl")
 include("background.jl")
 include("blob.jl")
+include("trackingresult.jl")
 include("correspondence.jl")
 include("display.jl")
 
@@ -104,6 +105,25 @@ end
 
 LowLevelParticleFilters.predict!(result::TrackingResult) = predict!(result.blobs)
 LowLevelParticleFilters.correct!(result::TrackingResult, measurement::Measurement) = correct!(result.blobs, measurement)
+
+function LowLevelParticleFilters.correct!(blobs, measurements::Vector{Measurement})
+    N = length(measurements)
+    R2 = copy(blobs[1].kf.R2)
+    for measurement in measurements
+        for (bi, ass) in enumerate(measurement.assi)
+            blob = blobs[bi]
+            if ass != 0
+                blob.kf.R2 .*= N # QUESTION N or N^2?
+                ll = correct!(blob.kf,SVector(measurement.coordinates[ass].I))
+                blob.kf.R2 .= R2
+                push!(blob.tracem, measurement.coordinates[ass])
+            else
+                push!(blob.tracem, OOB)
+            end
+            push!(blob.trace, location(blob))
+        end
+    end
+ end
 
 """
     update!(ws::Workspace, bt::BlobTracker, img, result::TrackingResult)
@@ -170,11 +190,19 @@ end
 
 function Measurement(ws, bt::BlobTracker, img::AbstractMatrix, result)
     coordinates = measure(ws, bt, img)
-    measurement = assign(bt.correspondence, result.blobs, coordinates)
+    if isempty(result.blobs) && bt.correspondence isa MCCorrespondence
+        measurement = assign(bt.correspondence.inner, result.blobs, coordinates)
+    else
+        measurement = assign(bt.correspondence, result.blobs, coordinates)
+    end
 end
 
 function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
-    measurement = assign(bt.correspondence, result.blobs, coordinates)
+    if isempty(result.blobs) && bt.correspondence isa MCCorrespondence
+        measurement = assign(bt.correspondence.inner, result.blobs, coordinates)
+    else
+        measurement = assign(bt.correspondence, result.blobs, coordinates)
+    end
 end
 
 """
@@ -205,7 +233,7 @@ function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, th
     end
 
     ws = Workspace(img, length(bt.sizes))
-    measurement = Measurement(ws, bt, img, result)
+    measurement = Measurement(ws, bt, img, result) # TODO: handle
     spawn_blobs!(result, bt, measurement)
     showblobs(RGB.(Gray.(img)), result, measurement, recorder = recorder, display=display)
 
