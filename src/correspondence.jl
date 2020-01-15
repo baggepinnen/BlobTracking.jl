@@ -1,9 +1,9 @@
 
 
 """
-    assign(c::AbstractCorrespondence, blobs, coordinates)
+    measurement = assign(c::AbstractCorrespondence, blobs, coordinates)
 
-Assign measurements to blobs using the `AbstractCorrespondence`
+Assign measurements to blobs using the `AbstractCorrespondence`. Returns `m::Measurement`
 
 #Arguments:
 - `blobs`: A vector of blobs
@@ -13,8 +13,8 @@ assign
 
 
 function assign(c::HungarianCorrespondence, blobs, coordinates)
-    isempty(blobs) && (return Int[])
-    isempty(coordinates) && (return zeros(Int, length(blobs)))
+    isempty(blobs) && (return Measurement(coordinates, Int[]))
+    isempty(coordinates) && (return Measurement(coordinates, zeros(Int, length(blobs))))
     p = c.p
     DM = [dist(b,c)^p for b in blobs, c in coordinates]
     # DM[DM .> bt.dist_th] .= 100000
@@ -23,8 +23,8 @@ function assign(c::HungarianCorrespondence, blobs, coordinates)
 end
 
 function assign(c::NearestNeighborCorrespondence, blobs, coordinates)
-    isempty(blobs) && (return Int[])
-    isempty(coordinates) && (return zeros(Int, length(blobs)))
+    isempty(blobs) && (return Measurement(coordinates, Int[]))
+    isempty(coordinates) && (return Measurement(coordinates, zeros(Int, length(blobs))))
     assi = zeros(Int, length(blobs))
     # kdtree = KDTree(Float32.(Matrix(location.(blobs))'))
     kdtree = KDTree(Float32.(Matrix(coordinates)'))
@@ -35,6 +35,5 @@ function assign(c::NearestNeighborCorrespondence, blobs, coordinates)
         end
         assi[bi] = I[]
     end
-    assi
     measurement = Measurement(coordinates, assi)
 end

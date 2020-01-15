@@ -1,5 +1,5 @@
-# using Pkg
-# pkg"activate /home/fredrikb/.julia/dev/BlobTracking/"
+using Pkg
+pkg"activate /home/fredrikb/.julia/dev/BlobTracking/"
 using BlobTracking
 using Test, Statistics, ImageDraw, Images, VideoIO, StaticArrays
 img = Gray.(zeros(100,100))
@@ -35,38 +35,38 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
         @testset "NearestNeighborCorrespondence" begin
             @info "Testing NearestNeighborCorrespondence"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             coordinates = locs
-            blobs = Blob.(bt, coordinates)
+            blobs = Blob.(bt.params, coordinates)
             c = NearestNeighborCorrespondence(dist_th = 2)
 
-            assi = BlobTracking.assign(c, blobs, coordinates)
-            @test assi == [1,2]
+            meas = BlobTracking.assign(c, blobs, coordinates)
+            @test meas.assi == [1,2]
 
-            assi = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
-            @test assi == [2,3]
+            meas = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test meas.assi == [2,3]
 
-            assi = BlobTracking.assign(c, [blobs; blobs], coordinates)
-            @test assi == [1,2,1,2]
+            meas = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test meas.assi == [1,2,1,2]
 
         end
 
 
         @testset "HungarianCorrespondence" begin
             @info "Testing HungarianCorrespondence"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             coordinates = locs
-            blobs = Blob.(bt, coordinates)
+            blobs = Blob.(bt.params, coordinates)
             c = HungarianCorrespondence(dist_th = 2)
 
-            assi = BlobTracking.assign(c, blobs, coordinates)
-            @test assi == [1,2]
+            meas = BlobTracking.assign(c, blobs, coordinates)
+            @test meas.assi == [1,2]
 
-            assi = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
-            @test assi == [2,3]
+            meas = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test meas.assi == [2,3]
 
-            assi = BlobTracking.assign(c, [blobs; blobs], coordinates)
-            @test assi == [1,2,0,0]
+            meas = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test meas.assi == [1,2,0,0]
 
         end
 
@@ -132,7 +132,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
     @testset "Tracking" begin
         @info "Testing Tracking"
-        bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+        bt = BlobTracker(2:2, 10, 5.0)
         result = TrackingResult()
         ws = BlobTracking.Workspace(img, bt)
         BlobTracking.prepare_image!(ws,bt,img)
@@ -183,7 +183,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
         @testset "track_blobs" begin
             @info "Testing track_blobs"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             result = track_blobs(bt,[img,img2])
 
             @test result.blobs[1].tracem[1] == locs[1]
@@ -194,7 +194,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
     end
     @testset "display" begin
         @info "Testing display"
-        bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+        bt = BlobTracker(2:2, 10, 5.0)
         recorder = Recorder()
         result = track_blobs(bt,[N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2))], display=img->println("displaying image"), recorder=recorder)
         traces =  trace(result, minlife=2)
@@ -212,7 +212,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
         @testset "tune_sizes" begin
             @info "Testing tune_sizes"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             tune_sizes(bt,img)
 
         end

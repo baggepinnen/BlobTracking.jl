@@ -76,6 +76,8 @@ struct KalmanParams
     σe::Float64
 end
 
+Base.Broadcast.broadcastable(b::KalmanParams) = Ref(b)
+
 """
     BlobTracker{T <: AbstractCorrespondence}
 
@@ -101,7 +103,7 @@ Base.@kwdef mutable struct BlobTracker{T<:AbstractCorrespondence}
 end
 
 """
-    BlobTracker(; sizes, σw, σe)
+    BlobTracker(sizes, σw, σe; kwargs...)
 
 Helper constructor that accepts keyword arguments for the `KalmanParams`
 
@@ -109,8 +111,8 @@ Helper constructor that accepts keyword arguments for the `KalmanParams`
 - `σw`: Dynamics standard deviation
 - `σe`: Measurement standard deviation
 """
-function BlobTracker(;σw, σe, kwargs...)
-    BlobTracker(;params = KalmanParams(σw, σe), kwargs...)
+function BlobTracker(sizes, σw, σe; kwargs...)
+    BlobTracker(;sizes = sizes, params = KalmanParams(σw, σe), kwargs...)
 end
 
 Base.Broadcast.broadcastable(b::BlobTracker) = Ref(b)
