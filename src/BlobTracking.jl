@@ -209,6 +209,8 @@ function Measurement(ws, bt::BlobTracker, img::AbstractMatrix, result)
     else
         measurement = assign(bt.correspondence, result.blobs, coordinates)
     end
+    log_measurement(result, measurement)
+    measurement
 end
 
 function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
@@ -217,6 +219,8 @@ function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
     else
         measurement = assign(bt.correspondence, result.blobs, coordinates)
     end
+    log_measurement(result, measurement)
+    measurement
 end
 
 """
@@ -247,7 +251,7 @@ function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, th
     end
 
     ws = Workspace(img, length(bt.sizes))
-    measurement = Measurement(ws, bt, img, result) # TODO: handle
+    measurement = Measurement(ws, bt, img, result) 
     spawn_blobs!(result, bt, measurement)
     showblobs(RGB.(Gray.(img)), result, measurement, recorder = recorder, display=display)
 
