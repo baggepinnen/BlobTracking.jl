@@ -279,8 +279,10 @@ function get_coordinates(bt::BlobTracker, vid; threads=Threads.nthreads()>1)
     else
         img,vid = Iterators.peel(vid)
         ws = Workspace(copy(img), length(bt.sizes))
+        coord = measure(ws, bt, img)
+        push!(coords, coord)
         for img in vid
-            coord = measure(ws1, bt, img)
+            coord = measure(ws, bt, img)
             push!(coords, coord)
         end
     end
