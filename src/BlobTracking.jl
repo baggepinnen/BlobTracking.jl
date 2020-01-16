@@ -29,6 +29,10 @@ function Workspace(img::AbstractMatrix, n::Int)
     Workspace(storage,blob_storage)
 end
 
+struct Measurement
+    coordinates
+    assi
+end
 
 const OOB = CartesianIndex(0,0)
 @inline to_static(a::Number) = a
@@ -58,11 +62,6 @@ function Base.iterate(vid::VideoIO.VideoReader, state)
     (Gray.(state)),state
 end
 
-
-struct Measurement
-    coordinates
-    assi
-end
 
 function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement, step=1)
     for (bi, ass) in enumerate(m.assi)
