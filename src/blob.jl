@@ -12,7 +12,7 @@ This type supports `location, trace, tracem, lifetime, draw!`
 """
 Base.@kwdef mutable struct Blob
     kf
-    counter::Int = 0
+    counter::Float64 = 0
     trace::Trace = CartesianIndex{2}[]
     tracem::Trace = CartesianIndex{2}[]
 end

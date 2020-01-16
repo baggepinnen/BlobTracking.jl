@@ -11,6 +11,8 @@ Supports functions `assign(c::AbstractCorrespondence, blobs, coordinates)`, `too
 """
 abstract type AbstractCorrespondence end
 
+dist_th(c::AbstractCorrespondence) = c.dist_th
+
 """
     HungarianCorrespondence <: AbstractCorrespondence
 
@@ -52,3 +54,4 @@ Base.@kwdef struct MCCorrespondence{T<:AbstractCorrespondence} <: AbstractCorres
     inner::T = HungarianCorrespondence()
     num_samples::Int = 20
 end
+dist_th(c::MCCorrespondence) = dist_th(c.inner)

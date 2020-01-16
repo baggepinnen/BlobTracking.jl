@@ -64,17 +64,24 @@ struct Measurement
     assi
 end
 
-function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement)
+function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement, step=1)
     for (bi, ass) in enumerate(m.assi)
         blob = result.blobs[bi]
         if ass == 0 || too_far(bt.correspondence, blob,m.coordinates[ass]) # penalize not found
-            blob.counter += 1
+            blob.counter += step
             m.assi[bi] = 0
         else
-            blob.counter = max(0, blob.counter-1) # decrement counter if measurement found
+            blob.counter = max(0, blob.counter-step) # decrement counter if measurement found
         end
     end
     m
+end
+
+function Base.filter!(result::TrackingResult, bt::BlobTracker, measurements::Vector{Measurement})
+    N = length(measurements)
+    map(measurements) do m
+        filter!(result, bt, m, 1/N)
+    end
 end
 
 """
@@ -91,7 +98,7 @@ end
 
 Correct the state of the blobs by incorporating the measurement in the Kalman filter
 """
-function LowLevelParticleFilters.correct!(blobs, measurement::Measurement)
+function LowLevelParticleFilters.correct!(blobs::Vector, measurement::Measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
             ll = correct!(blobs[bi].kf,SVector(measurement.coordinates[ass].I))
@@ -104,9 +111,10 @@ function LowLevelParticleFilters.correct!(blobs, measurement::Measurement)
 end
 
 LowLevelParticleFilters.predict!(result::TrackingResult) = predict!(result.blobs)
-LowLevelParticleFilters.correct!(result::TrackingResult, measurement::Measurement) = correct!(result.blobs, measurement)
+LowLevelParticleFilters.correct!(result::TrackingResult, measurement) = correct!(result.blobs, measurement)
 
-function LowLevelParticleFilters.correct!(blobs, measurements::Vector{Measurement})
+
+function LowLevelParticleFilters.correct!(blobs::Vector, measurements::Vector{Measurement})
     N = length(measurements)
     R2 = copy(blobs[1].kf.R2)
     for measurement in measurements
@@ -126,19 +134,19 @@ function LowLevelParticleFilters.correct!(blobs, measurements::Vector{Measuremen
  end
 
 """
-    update!(ws::Workspace, bt::BlobTracker, img, result::TrackingResult)
+    update!(ws::Workspace, bt::BlobTracker, coords_or_img, result::TrackingResult)
 
 Perform one iteration of predict and correct
 
 #Arguments:
 - `ws`: a Workspace object
 - `bt`: the blob tracker
-- `img`: the image
+- `coords_or_img`: vector of coordinates or an image
 - `result`: a `TrackingResult`
 """
-function LowLevelParticleFilters.update!(ws, bt::BlobTracker, img, result::TrackingResult)
+function LowLevelParticleFilters.update!(ws, bt::BlobTracker, coords_or_img, result::TrackingResult)
     blobs = result.blobs
-    measurement = Measurement(ws, bt, img, result)
+    measurement = Measurement(ws, bt, coords_or_img, result)
     predict!(result)
     filter!(result, bt, measurement)
     correct!(result, measurement)
@@ -151,6 +159,12 @@ function spawn_blobs!(result::TrackingResult, bt::BlobTracker, measurement)
     newcoordinds = setdiff(1:length(measurement.coordinates), measurement.assi)
     newblobs = Blob.(bt.params, measurement.coordinates[newcoordinds])
     append!(result.blobs, newblobs)
+end
+
+function spawn_blobs!(result::TrackingResult, bt::BlobTracker, measurements::Vector{Measurement})
+    for measurement in measurements
+        spawn_blobs!(result, bt, measurement)
+    end
 end
 
 """
@@ -268,8 +282,8 @@ function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, th
     try
         for (ind,img) in enumerate(buffer)
             println("Frame $ind")
-            img, coords = img isa Tuple ? img : (img,img)
-            measurement = update!(ws, bt, coords , result)
+            img, coord_or_img = img isa Tuple ? img : (img,img)
+            measurement = update!(ws, bt, coord_or_img , result)
             showblobs(RGB.(Gray.(img)),result,measurement, rad=6, recorder=recorder, display=display, ignoreempty=ignoreempty)
         end
     finally

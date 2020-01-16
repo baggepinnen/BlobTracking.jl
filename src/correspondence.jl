@@ -16,7 +16,7 @@ function dist(sample, c)
     sqrt((c[1]-sample[1])^2 + (c[2]-sample[2])^2)
 end
 
-too_far(c::AbstractCorrespondence,blob,coord) = dist(blob, coord) > c.dist_th
+too_far(c::AbstractCorrespondence,blob,coord) = dist(blob, coord) > dist_th(c)
 
 """
     measurement = assign(c::AbstractCorrespondence, blobs, coordinates)
@@ -48,7 +48,7 @@ function assign(c::NearestNeighborCorrespondence, blobs, coordinates)
     kdtree = KDTree(Float32.(Matrix(coordinates)'))
     for (bi,blob) in enumerate(blobs)
         I,d = knn(kdtree, to_static(location(blob)), 1)
-        if d[] > c.dist_th
+        if d[] > dist_th(c)
             continue
         end
         assi[bi] = I[]

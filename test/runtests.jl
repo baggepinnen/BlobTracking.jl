@@ -233,6 +233,9 @@ draw!(img3,locs3[2], c=Gray(1.0))
             @test result.blobs[2].tracem[1] == locs[2]
             @test result.blobs[1].tracem[2] == locs2[1]
             @test result.blobs[2].tracem[2] == locs2[2]
+
+            bt = BlobTracker(2:2, 10, 5.0, correspondence=MCCorrespondence())
+            result = track_blobs(bt,[img,img2])
         end
     end
     @testset "display" begin
