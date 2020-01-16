@@ -84,6 +84,11 @@ track_blobs(...; display = displayfun)
 ```
 Blobs are shown in blue, newly spawned blobs are show in green and measurements are shown in red.If everything is working well, most blue dots should have a red dot inside or very nearby. If the blue blobs are lagging behind the red dots, the filter needs tuning by either decreasing the measurement variance or increasing the dynamics variance. If blue dots shoot off rapidly whenever measurements are lost, the dynamics variance should be decreased.
 
+If you do not want to run the tracking and instead only collect all coordinates of detected blobs, you may call
+```julia
+coords = get_coordiantes(bt, vid)
+```
+
 
 ### Visualization etc.
 

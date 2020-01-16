@@ -227,8 +227,11 @@ draw!(img3,locs3[2], c=Gray(1.0))
         @testset "Coordinate iterator" begin
             @info "Testing Coordinate iterator"
             bt = BlobTracker(2:2, 10, 5.0)
-            itr = BlobTracking.coordinate_iterator(bt, [img,img2,img,img2])
-            coords = collect(itr)
+            coords = BlobTracking.get_coordiantes(bt, [img,img2,img,img2], threads=true)
+            @test length(coords) == 4
+            @test coords == [locs,locs2,locs,locs2]
+
+            coords = BlobTracking.get_coordiantes(bt, [img,img2,img,img2], threads=false)
             @test length(coords) == 4
         end
 

@@ -4,7 +4,7 @@ using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, NearestNeighbors
 using JuliennedArrays # For faster median etc.
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static, get_coordiantes
 
 export AbstractCorrespondence, HungarianCorrespondence, NearestNeighborCorrespondence, MCCorrespondence
 
@@ -258,6 +258,23 @@ function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, th
         finalize(recorder)
     end
     result#, t1,t2
+end
+
+function get_coordinates(bt::BlobTracker, vid; threads=Threads.nthreads()>1)
+    coords = Trace[]
+    if threads
+        for (img, coord) in coordinate_iterator(bt, vid)
+            push!(coords, coord)
+        end
+    else
+        img,vid = Iterators.peel(vid)
+        ws = Workspace(copy(img), length(bt.sizes))
+        for img in vid
+            coord = measure(ws1, bt, img)
+            push!(coords, coord)
+        end
+    end
+    coords
 end
 
 function coordinate_iterator(bt, vid)
