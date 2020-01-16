@@ -239,49 +239,13 @@ displayfun = img -> imshow!(c["gui"]["canvas"],img); `.
 """
 function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, threads=Threads.nthreads()>1, ignoreempty=false)
     result = TrackingResult()
-    img,vid = Iterators.peel(vid)
-    t1 = Ref{Task}()
-    t2 = Ref{Task}()
-    if threads
-        vidbuffer = Channel{typeof(img)}(2, spawn=true, taskref=t1) do ch
-            for img in vid
-                put!(ch,img)
-            end
-        end
-    end
-
+    buffer = threads ? coordinate_iterator(bt, vid) : vid
+    img,buffer = Iterators.peel(buffer)
     ws = Workspace(img, length(bt.sizes))
-    measurement = Measurement(ws, bt, img, result) 
+    img, coord_or_img = img isa Tuple ? img : (img,img)
+    measurement = Measurement(ws, bt, coord_or_img, result)
     spawn_blobs!(result, bt, measurement)
     showblobs(RGB.(Gray.(img)), result, measurement, recorder = recorder, display=display)
-
-    buffer = if threads
-        ws1 = Workspace(img, length(bt.sizes))
-        ws2 = Workspace(img, length(bt.sizes))
-        Channel{Tuple{typeof(img), Trace}}(2, spawn=false, taskref=t2) do ch
-            # for img in vidbuffer
-            #     coords = measure(storage1, bt, img)
-            #     put!(ch, (img, coords))
-            # end
-            while isready(vidbuffer)
-                img1 = take!(vidbuffer)
-                m1 = Threads.@spawn measure(ws1, bt, img1)
-                img2 = nothing
-                if isready(vidbuffer)
-                    img2 = take!(vidbuffer)
-                    m2 = Threads.@spawn measure(ws2, bt, img2)
-                end
-                put!(ch,(img1, fetch(m1)))
-                if img2 === nothing
-                    return
-                else
-                    put!(ch,(img2, fetch(m2)))
-                end
-            end
-        end
-    else
-        vid
-    end
 
     try
         for (ind,img) in enumerate(buffer)
@@ -294,6 +258,37 @@ function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, th
         finalize(recorder)
     end
     result#, t1,t2
+end
+
+function coordinate_iterator(bt, vid)
+    img1 = iterate(vid)
+    img1 === nothing && return
+    img1,state = img1
+
+    ws1 = Workspace(copy(img1), length(bt.sizes))
+    ws2 = Workspace(copy(img1), length(bt.sizes))
+    m1 = measure(ws1, bt, img1)
+
+    Channel{Tuple{typeof(img1), Trace}}(3, spawn=false) do ch
+        put!(ch,(img1, m1))
+        while true
+            img1 = iterate(vid, state)
+            img1 === nothing && return
+            img1,state = img1
+            m1 = Threads.@spawn measure(ws1, bt, img1)
+            img2 = iterate(vid, state)
+            if img2 !== nothing
+                img2,state = img2
+                m2 = Threads.@spawn measure(ws2, bt, img2)
+            end
+            put!(ch,(img1, fetch(m1)))
+            if img2 === nothing
+                return
+            else
+                put!(ch,(img2, fetch(m2)))
+            end
+        end
+    end
 end
 
 

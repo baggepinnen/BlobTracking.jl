@@ -224,10 +224,25 @@ draw!(img3,locs3[2], c=Gray(1.0))
         @test result.blobs[1].tracem[3] == OOB
         @test result.blobs[2].tracem[3] == OOB
 
+        @testset "Coordinate iterator" begin
+            @info "Testing Coordinate iterator"
+            bt = BlobTracker(2:2, 10, 5.0)
+            itr = BlobTracking.coordinate_iterator(bt, [img,img2,img,img2])
+            coords = collect(itr)
+            @test length(coords) == 4
+        end
+
         @testset "track_blobs" begin
             @info "Testing track_blobs"
             bt = BlobTracker(2:2, 10, 5.0)
             result = track_blobs(bt,[img,img2])
+
+            @test result.blobs[1].tracem[1] == locs[1]
+            @test result.blobs[2].tracem[1] == locs[2]
+            @test result.blobs[1].tracem[2] == locs2[1]
+            @test result.blobs[2].tracem[2] == locs2[2]
+
+            result = track_blobs(bt,[img,img2], threads=false)
 
             @test result.blobs[1].tracem[1] == locs[1]
             @test result.blobs[2].tracem[1] == locs[2]
