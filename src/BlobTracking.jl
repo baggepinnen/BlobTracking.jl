@@ -256,7 +256,18 @@ function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, th
     finally
         finalize(recorder)
     end
-    result#, t1,t2
+    result
+end
+
+
+function track_blobs(bt::BlobTracker, coords::Vector{Trace})
+    result = TrackingResult()
+    measurement = Measurement(nothing, bt, coords[1], result)
+    spawn_blobs!(result, bt, measurement)
+    for coord in coords[2:end]
+        measurement = update!(nothing, bt, coord , result)
+    end
+    result
 end
 
 function get_coordinates(bt::BlobTracker, vid; threads=Threads.nthreads()>1)

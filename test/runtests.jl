@@ -263,6 +263,16 @@ draw!(img3,locs3[2], c=Gray(1.0))
             # @test tracem.(allblobs(result))
 
             @test location(result) == [locs, locs2]
+
+
+            bt = BlobTracker(2:2, 10, 5.0)
+            coords = BlobTracking.get_coordiantes(bt, [img,img2,img,img2], threads=true)
+            result = track_blobs(bt,coords)
+
+            @test result.blobs[1].tracem[1] == locs[1]
+            @test result.blobs[2].tracem[1] == locs[2]
+            @test result.blobs[1].tracem[2] == locs2[1]
+            @test result.blobs[2].tracem[2] == locs2[2]
         end
     end
     @testset "display" begin

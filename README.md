@@ -88,6 +88,7 @@ If you do not want to run the tracking and instead only collect all coordinates 
 ```julia
 coords = get_coordiantes(bt, vid)
 ```
+you can then later call the tracking function like `result = track_blobs(bt,coords)`, but if invoked like this, you do not have the option to display or record images.
 
 
 ### Visualization etc.
