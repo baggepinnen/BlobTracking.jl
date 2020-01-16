@@ -4,7 +4,7 @@ using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, NearestNeighbors
 using JuliennedArrays # For faster median etc.
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static, get_coordiantes
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static, get_coordinates
 
 export AbstractCorrespondence, HungarianCorrespondence, NearestNeighborCorrespondence, MCCorrespondence
 

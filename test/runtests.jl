@@ -227,11 +227,11 @@ draw!(img3,locs3[2], c=Gray(1.0))
         @testset "Coordinate iterator" begin
             @info "Testing Coordinate iterator"
             bt = BlobTracker(2:2, 10, 5.0)
-            coords = BlobTracking.get_coordiantes(bt, [img,img2,img,img2], threads=true)
+            coords = BlobTracking.get_coordinates(bt, [img,img2,img,img2], threads=true)
             @test length(coords) == 4
             @test coords == [locs,locs2,locs,locs2]
 
-            coords = BlobTracking.get_coordiantes(bt, [img,img2,img,img2], threads=false)
+            coords = BlobTracking.get_coordinates(bt, [img,img2,img,img2], threads=false)
             @test length(coords) == 4
         end
 
@@ -266,7 +266,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
 
             bt = BlobTracker(2:2, 10, 5.0)
-            coords = BlobTracking.get_coordiantes(bt, [img,img2,img,img2], threads=true)
+            coords = BlobTracking.get_coordinates(bt, [img,img2,img,img2], threads=true)
             result = track_blobs(bt,coords)
 
             @test result.blobs[1].tracem[1] == locs[1]
