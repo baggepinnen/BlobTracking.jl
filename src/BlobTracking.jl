@@ -4,9 +4,9 @@ using Images, ImageFiltering, ImageDraw, VideoIO
 using LowLevelParticleFilters, Hungarian, StaticArrays, Distributions, Distances, Interact, NearestNeighbors
 using JuliennedArrays # For faster median etc.
 
-export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static
+export BlobTracker, Blob, Recorder, track_blobs, showblobs, tune_sizes, FrameBuffer, MedianBackground, DiffBackground, background, foreground, update!, TrackingResult, Measurement, location, threshold, invthreshold, OOB, lifetime, Trace, trace, tracem, allblobs, draw!, to_static, get_coordinates
 
-export AbstractCorrespondence, HungarianCorrespondence, NearestNeighborCorrespondence
+export AbstractCorrespondence, HungarianCorrespondence, NearestNeighborCorrespondence, MCCorrespondence
 
 """
     Workspace{T1, T2}
@@ -29,6 +29,10 @@ function Workspace(img::AbstractMatrix, n::Int)
     Workspace(storage,blob_storage)
 end
 
+struct Measurement
+    coordinates
+    assi
+end
 
 const OOB = CartesianIndex(0,0)
 @inline to_static(a::Number) = a
@@ -42,6 +46,7 @@ include("correspondence_types.jl")
 include("framebuffer.jl")
 include("background.jl")
 include("blob.jl")
+include("trackingresult.jl")
 include("correspondence.jl")
 include("display.jl")
 
@@ -58,22 +63,24 @@ function Base.iterate(vid::VideoIO.VideoReader, state)
 end
 
 
-struct Measurement
-    coordinates
-    assi
-end
-
-function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement)
+function Base.filter!(result::TrackingResult, bt::BlobTracker, m::Measurement, step=1)
     for (bi, ass) in enumerate(m.assi)
         blob = result.blobs[bi]
         if ass == 0 || too_far(bt.correspondence, blob,m.coordinates[ass]) # penalize not found
-            blob.counter += 1
+            blob.counter += step
             m.assi[bi] = 0
         else
-            blob.counter = max(0, blob.counter-1) # decrement counter if measurement found
+            blob.counter = max(0, blob.counter-step) # decrement counter if measurement found
         end
     end
     m
+end
+
+function Base.filter!(result::TrackingResult, bt::BlobTracker, measurements::Vector{Measurement})
+    N = length(measurements)
+    map(measurements) do m
+        filter!(result, bt, m, 1/N)
+    end
 end
 
 """
@@ -90,7 +97,7 @@ end
 
 Correct the state of the blobs by incorporating the measurement in the Kalman filter
 """
-function LowLevelParticleFilters.correct!(blobs, measurement::Measurement)
+function LowLevelParticleFilters.correct!(blobs::Vector, measurement::Measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
             ll = correct!(blobs[bi].kf,SVector(measurement.coordinates[ass].I))
@@ -103,22 +110,42 @@ function LowLevelParticleFilters.correct!(blobs, measurement::Measurement)
 end
 
 LowLevelParticleFilters.predict!(result::TrackingResult) = predict!(result.blobs)
-LowLevelParticleFilters.correct!(result::TrackingResult, measurement::Measurement) = correct!(result.blobs, measurement)
+LowLevelParticleFilters.correct!(result::TrackingResult, measurement) = correct!(result.blobs, measurement)
+
+
+function LowLevelParticleFilters.correct!(blobs::Vector, measurements::Vector{Measurement})
+    N = length(measurements)
+    R2 = copy(blobs[1].kf.R2)
+    for measurement in measurements
+        for (bi, ass) in enumerate(measurement.assi)
+            blob = blobs[bi]
+            if ass != 0
+                blob.kf.R2 .*= N # QUESTION N or N^2?
+                ll = correct!(blob.kf,SVector(measurement.coordinates[ass].I))
+                blob.kf.R2 .= R2
+                push!(blob.tracem, measurement.coordinates[ass])
+            else
+                push!(blob.tracem, OOB)
+            end
+            push!(blob.trace, location(blob))
+        end
+    end
+ end
 
 """
-    update!(ws::Workspace, bt::BlobTracker, img, result::TrackingResult)
+    update!(ws::Workspace, bt::BlobTracker, coords_or_img, result::TrackingResult)
 
 Perform one iteration of predict and correct
 
 #Arguments:
 - `ws`: a Workspace object
 - `bt`: the blob tracker
-- `img`: the image
+- `coords_or_img`: vector of coordinates or an image
 - `result`: a `TrackingResult`
 """
-function LowLevelParticleFilters.update!(ws, bt::BlobTracker, img, result::TrackingResult)
+function LowLevelParticleFilters.update!(ws, bt::BlobTracker, coords_or_img, result::TrackingResult)
     blobs = result.blobs
-    measurement = Measurement(ws, bt, img, result)
+    measurement = Measurement(ws, bt, coords_or_img, result)
     predict!(result)
     filter!(result, bt, measurement)
     correct!(result, measurement)
@@ -131,6 +158,12 @@ function spawn_blobs!(result::TrackingResult, bt::BlobTracker, measurement)
     newcoordinds = setdiff(1:length(measurement.coordinates), measurement.assi)
     newblobs = Blob.(bt.params, measurement.coordinates[newcoordinds])
     append!(result.blobs, newblobs)
+end
+
+function spawn_blobs!(result::TrackingResult, bt::BlobTracker, measurements::Vector{Measurement})
+    for measurement in measurements
+        spawn_blobs!(result, bt, measurement)
+    end
 end
 
 """
@@ -170,13 +203,23 @@ end
 
 function Measurement(ws, bt::BlobTracker, img::AbstractMatrix, result)
     coordinates = measure(ws, bt, img)
-    assi = assign(bt.correspondence, result.blobs, coordinates)
-    measurement = Measurement(coordinates, assi)
+    if isempty(result.blobs) && bt.correspondence isa MCCorrespondence
+        measurement = assign(bt.correspondence.inner, result.blobs, coordinates)
+    else
+        measurement = assign(bt.correspondence, result.blobs, coordinates)
+    end
+    log_measurement(result, measurement)
+    measurement
 end
 
 function Measurement(_, bt::BlobTracker, coordinates::Trace, result)
-    assi = assign(bt.correspondence, result.blobs, coordinates)
-    measurement = Measurement(coordinates, assi)
+    if isempty(result.blobs) && bt.correspondence isa MCCorrespondence
+        measurement = assign(bt.correspondence.inner, result.blobs, coordinates)
+    else
+        measurement = assign(bt.correspondence, result.blobs, coordinates)
+    end
+    log_measurement(result, measurement)
+    measurement
 end
 
 """
@@ -195,61 +238,86 @@ displayfun = img -> imshow!(c["gui"]["canvas"],img); `.
 """
 function track_blobs(bt::BlobTracker, vid; display=nothing, recorder=nothing, threads=Threads.nthreads()>1, ignoreempty=false)
     result = TrackingResult()
-    img,vid = Iterators.peel(vid)
-    t1 = Ref{Task}()
-    t2 = Ref{Task}()
-    if threads
-        vidbuffer = Channel{typeof(img)}(2, spawn=true, taskref=t1) do ch
-            for img in vid
-                put!(ch,img)
-            end
-        end
-    end
-
+    buffer = threads ? coordinate_iterator(bt, vid) : vid
+    img,buffer = Iterators.peel(buffer)
     ws = Workspace(img, length(bt.sizes))
-    measurement = Measurement(ws, bt, img, result)
+    img, coord_or_img = img isa Tuple ? img : (img,img)
+    measurement = Measurement(ws, bt, coord_or_img, result)
     spawn_blobs!(result, bt, measurement)
     showblobs(RGB.(Gray.(img)), result, measurement, recorder = recorder, display=display)
-
-    buffer = if threads
-        ws1 = Workspace(img, length(bt.sizes))
-        ws2 = Workspace(img, length(bt.sizes))
-        Channel{Tuple{typeof(img), Trace}}(2, spawn=false, taskref=t2) do ch
-            # for img in vidbuffer
-            #     coords = measure(storage1, bt, img)
-            #     put!(ch, (img, coords))
-            # end
-            while isready(vidbuffer)
-                img1 = take!(vidbuffer)
-                m1 = Threads.@spawn measure(ws1, bt, img1)
-                img2 = nothing
-                if isready(vidbuffer)
-                    img2 = take!(vidbuffer)
-                    m2 = Threads.@spawn measure(ws2, bt, img2)
-                end
-                put!(ch,(img1, fetch(m1)))
-                if img2 === nothing
-                    return
-                else
-                    put!(ch,(img2, fetch(m2)))
-                end
-            end
-        end
-    else
-        vid
-    end
 
     try
         for (ind,img) in enumerate(buffer)
             println("Frame $ind")
-            img, coords = img isa Tuple ? img : (img,img)
-            measurement = update!(ws, bt, coords , result)
+            img, coord_or_img = img isa Tuple ? img : (img,img)
+            measurement = update!(ws, bt, coord_or_img , result)
             showblobs(RGB.(Gray.(img)),result,measurement, rad=6, recorder=recorder, display=display, ignoreempty=ignoreempty)
         end
     finally
         finalize(recorder)
     end
-    result#, t1,t2
+    result
+end
+
+
+function track_blobs(bt::BlobTracker, coords::Vector{Trace})
+    result = TrackingResult()
+    measurement = Measurement(nothing, bt, coords[1], result)
+    spawn_blobs!(result, bt, measurement)
+    for coord in coords[2:end]
+        measurement = update!(nothing, bt, coord , result)
+    end
+    result
+end
+
+function get_coordinates(bt::BlobTracker, vid; threads=Threads.nthreads()>1)
+    coords = Trace[]
+    if threads
+        for (img, coord) in coordinate_iterator(bt, vid)
+            push!(coords, coord)
+        end
+    else
+        img,vid = Iterators.peel(vid)
+        ws = Workspace(copy(img), length(bt.sizes))
+        coord = measure(ws, bt, img)
+        push!(coords, coord)
+        for img in vid
+            coord = measure(ws, bt, img)
+            push!(coords, coord)
+        end
+    end
+    coords
+end
+
+function coordinate_iterator(bt, vid)
+    img1 = iterate(vid)
+    img1 === nothing && return
+    img1,state = img1
+
+    ws1 = Workspace(copy(img1), length(bt.sizes))
+    ws2 = Workspace(copy(img1), length(bt.sizes))
+    m1 = measure(ws1, bt, img1)
+
+    Channel{Tuple{typeof(img1), Trace}}(3, spawn=false) do ch
+        put!(ch,(img1, m1))
+        while true
+            img1 = iterate(vid, state)
+            img1 === nothing && return
+            img1,state = img1
+            m1 = Threads.@spawn measure(ws1, bt, img1)
+            img2 = iterate(vid, state)
+            if img2 !== nothing
+                img2,state = img2
+                m2 = Threads.@spawn measure(ws2, bt, img2)
+            end
+            put!(ch,(img1, fetch(m1)))
+            if img2 === nothing
+                return
+            else
+                put!(ch,(img2, fetch(m2)))
+            end
+        end
+    end
 end
 
 

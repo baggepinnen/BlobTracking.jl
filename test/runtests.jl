@@ -30,43 +30,86 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
     end
 
+    @testset "Blob" begin
+        @info "Testing Blob"
+        b = Blob()
+        blobs = [b]
+        corr = HungarianCorrespondence(dist_th = 2)
+        measurement = BlobTracking.assign(corr, blobs, locs)
+        BlobTracking.correct!(blobs, measurement)
+        pos1 = to_static(location(b))
+        @test all(to_static(location(b)) .> 0)
+        @test all(to_static(location(b)) .< to_static(locs[1]))
+
+
+        b = Blob()
+        blobs = [b]
+        corr = MCCorrespondence(HungarianCorrespondence(dist_th = 2), 20)
+        measurement = BlobTracking.assign(corr, blobs, locs)
+        BlobTracking.correct!(blobs, measurement)
+        pos2 = to_static(location(b))
+        @test pos1 == pos2
+
+    end
+
     @testset "Correspondence" begin
         @info "Testing Correspondence"
 
         @testset "NearestNeighborCorrespondence" begin
             @info "Testing NearestNeighborCorrespondence"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             coordinates = locs
-            blobs = Blob.(bt, coordinates)
+            blobs = Blob.(bt.params, coordinates)
             c = NearestNeighborCorrespondence(dist_th = 2)
 
-            assi = BlobTracking.assign(c, blobs, coordinates)
-            @test assi == [1,2]
+            meas = BlobTracking.assign(c, blobs, coordinates)
+            @test meas.assi == [1,2]
 
-            assi = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
-            @test assi == [2,3]
+            meas = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test meas.assi == [2,3]
 
-            assi = BlobTracking.assign(c, [blobs; blobs], coordinates)
-            @test assi == [1,2,1,2]
+            meas = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test meas.assi == [1,2,1,2]
 
         end
 
 
         @testset "HungarianCorrespondence" begin
             @info "Testing HungarianCorrespondence"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             coordinates = locs
-            blobs = Blob.(bt, coordinates)
+            blobs = Blob.(bt.params, coordinates)
             c = HungarianCorrespondence(dist_th = 2)
 
-            assi = BlobTracking.assign(c, blobs, coordinates)
-            @test assi == [1,2]
+            meas = BlobTracking.assign(c, blobs, coordinates)
+            @test meas.assi == [1,2]
 
-            assi = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
-            @test assi == [2,3]
+            meas = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test meas.assi == [2,3]
 
-            assi = BlobTracking.assign(c, [blobs; blobs], coordinates)
-            @test assi == [1,2,0,0]
+            meas = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test meas.assi == [1,2,0,0]
+
+        end
+
+        @testset "MCCorrespondence" begin
+            @info "Testing MCCorrespondence"
+            bt = BlobTracker(2:2, 10, 5.0)
+            coordinates = locs
+            blobs = Blob.(bt.params, coordinates)
+            c = MCCorrespondence()
+
+            meas = BlobTracking.assign(c, blobs, coordinates)
+            @test median(meas[i].assi[1] for i in eachindex(meas)) == 1
+            @test median(meas[i].assi[2] for i in eachindex(meas)) == 2
+
+            meas = BlobTracking.assign(c, blobs, [CartesianIndex(1000,1000); coordinates])
+            @test median(meas[i].assi[1] for i in eachindex(meas)) == 2
+            @test median(meas[i].assi[2] for i in eachindex(meas)) == 3
+
+            meas = BlobTracking.assign(c, [blobs; blobs], coordinates)
+            @test median(meas[i].assi[1] for i in eachindex(meas)) <= 1
+            @test median(meas[i].assi[2] for i in eachindex(meas)) <= 2
 
         end
 
@@ -132,7 +175,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
 
     @testset "Tracking" begin
         @info "Testing Tracking"
-        bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+        bt = BlobTracker(2:2, 10, 5.0)
         result = TrackingResult()
         ws = BlobTracking.Workspace(img, bt)
         BlobTracking.prepare_image!(ws,bt,img)
@@ -181,10 +224,49 @@ draw!(img3,locs3[2], c=Gray(1.0))
         @test result.blobs[1].tracem[3] == OOB
         @test result.blobs[2].tracem[3] == OOB
 
+        @testset "Coordinate iterator" begin
+            @info "Testing Coordinate iterator"
+            bt = BlobTracker(2:2, 10, 5.0)
+            coords = BlobTracking.get_coordinates(bt, [img,img2,img,img2], threads=true)
+            @test length(coords) == 4
+            @test coords == [locs,locs2,locs,locs2]
+
+            coords = BlobTracking.get_coordinates(bt, [img,img2,img,img2], threads=false)
+            @test length(coords) == 4
+        end
+
         @testset "track_blobs" begin
             @info "Testing track_blobs"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             result = track_blobs(bt,[img,img2])
+
+            @test result.blobs[1].tracem[1] == locs[1]
+            @test result.blobs[2].tracem[1] == locs[2]
+            @test result.blobs[1].tracem[2] == locs2[1]
+            @test result.blobs[2].tracem[2] == locs2[2]
+
+            result = track_blobs(bt,[img,img2], threads=false)
+
+            @test result.blobs[1].tracem[1] == locs[1]
+            @test result.blobs[2].tracem[1] == locs[2]
+            @test result.blobs[1].tracem[2] == locs2[1]
+            @test result.blobs[2].tracem[2] == locs2[2]
+
+            bt = BlobTracker(2:2, 10, 5.0, correspondence=MCCorrespondence())
+            result = track_blobs(bt,[img,img3])
+
+            @test result.blobs[1].tracem[1] == locs[1]
+            @test result.blobs[2].tracem[1] == locs[2]
+            @test result.blobs[1].tracem[2] == locs3[1]
+            @test result.blobs[2].tracem[2] == locs3[2]
+            # @test tracem.(allblobs(result))
+            @test location(result) == [locs, locs3]
+
+
+
+            bt = BlobTracker(2:2, 10, 5.0)
+            coords = BlobTracking.get_coordinates(bt, [img,img2,img,img2], threads=true)
+            result = track_blobs(bt,coords)
 
             @test result.blobs[1].tracem[1] == locs[1]
             @test result.blobs[2].tracem[1] == locs[2]
@@ -194,7 +276,7 @@ draw!(img3,locs3[2], c=Gray(1.0))
     end
     @testset "display" begin
         @info "Testing display"
-        bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+        bt = BlobTracker(2:2, 10, 5.0)
         recorder = Recorder()
         result = track_blobs(bt,[N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2)),N0f8.(Gray.(img)),N0f8.(Gray.(img2))], display=img->println("displaying image"), recorder=recorder)
         traces =  trace(result, minlife=2)
@@ -209,10 +291,13 @@ draw!(img3,locs3[2], c=Gray(1.0))
         frame1 = first(vid)
         @test size(frame1) == size(img)
 
+        if isfile(recorder.filename)
+            rm(recorder.filename)
+        end
 
         @testset "tune_sizes" begin
             @info "Testing tune_sizes"
-            bt = BlobTracker(sizes=2:2, σw = 10, σe = 5)
+            bt = BlobTracker(2:2, 10, 5.0)
             tune_sizes(bt,img)
 
         end

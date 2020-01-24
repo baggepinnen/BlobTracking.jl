@@ -11,6 +11,8 @@ Supports functions `assign(c::AbstractCorrespondence, blobs, coordinates)`, `too
 """
 abstract type AbstractCorrespondence end
 
+dist_th(c::AbstractCorrespondence) = c.dist_th
+
 """
     HungarianCorrespondence <: AbstractCorrespondence
 
@@ -37,3 +39,19 @@ Assign each blob the measurement that appears closest to the blob. This method c
 Base.@kwdef struct NearestNeighborCorrespondence <: AbstractCorrespondence
     dist_th::Float64 = 2
 end
+
+
+"""
+    MCCorrespondence <: AbstractCorrespondence
+
+Assigns blobs to measurement by approximately integrating over the posterior distribution over blobs and performing the assignment using the inner assignment
+
+# Parameters
+- `inner`: inner assignment object
+- `num_samples::Int = 20` number of Monte Carlo samples to draw. The inner assignment routine will be called this many times so it can get expensive to set this too high.
+"""
+Base.@kwdef struct MCCorrespondence{T<:AbstractCorrespondence} <: AbstractCorrespondence
+    inner::T = HungarianCorrespondence()
+    num_samples::Int = 20
+end
+dist_th(c::MCCorrespondence) = dist_th(c.inner)

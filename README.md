@@ -85,6 +85,12 @@ track_blobs(...; display = displayfun)
 ```
 Blobs are shown in blue, newly spawned blobs are show in green and measurements are shown in red.If everything is working well, most blue dots should have a red dot inside or very nearby. If the blue blobs are lagging behind the red dots, the filter needs tuning by either decreasing the measurement variance or increasing the dynamics variance. If blue dots shoot off rapidly whenever measurements are lost, the dynamics variance should be decreased.
 
+If you do not want to run the tracking and instead only collect all coordinates of detected blobs, you may call
+```julia
+coords = get_coordiantes(bt, vid)
+```
+you can then later call the tracking function like `result = track_blobs(bt,coords)`, but if invoked like this, you do not have the option to display or record images.
+
 
 ### Visualization etc.
 
@@ -110,6 +116,7 @@ Most functions have docstrings. Docstrings of types hint at what functions you c
 - `AbstractCorrespondence`
     - `HungarianCorrespondence` matches blobs to measurements using the Hungarian algorithm
     - `NearestNeighborCorrespondence` matches blobs to the nearest measurement
+    - `MCCorrespondence` uses Monte Carlo integration over the filtering distribution of the blobs and matches blobs to measurements several times using the chosen inner `AbstractCorrespondence`.
 - `TrackingResult` contains lists of dead and alive blobs
 - `Trace` is a list of coordinates
 - `Recorder` records movies and saves them on disk

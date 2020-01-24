@@ -12,12 +12,14 @@ This type supports `location, trace, tracem, lifetime, draw!`
 """
 Base.@kwdef mutable struct Blob
     kf
-    counter::Int = 0
+    counter::Float64 = 0
     trace::Trace = CartesianIndex{2}[]
     tracem::Trace = CartesianIndex{2}[]
 end
 
 Base.Broadcast.broadcastable(b::Blob) = Ref(b)
+
+Blob() = Blob(KalmanParams(1,1), CartesianIndex(1,1))
 
 """
     trace(b::Blob)
@@ -35,46 +37,14 @@ tracem(b::Blob) = b.tracem
 Base.skipmissing(trace::Trace) = filter(!=(OOB), trace)
 Base.Matrix(trace::Trace) = [getindex.(trace,1) getindex.(trace,2)]
 
-"""
-    TrackingResult
 
-This type stores a vector of `blobs` that were active when tracking terminated and a vector `dead` of blobs that died during tracking. This type supports `allblobs, trace`
-"""
-TrackingResult
-
-Base.@kwdef mutable struct TrackingResult
-    blobs::Vector{Blob} = Blob[]
-    dead::Vector{Blob} = Blob[]
-end
-
-"""
-    allblobs(tr)
-
-Get all blobs in a tracking result
-"""
-allblobs(tr::TrackingResult) = [tr.dead; tr.blobs]
-
-"""
-    trace(tr::TrackingResult; minlife=0)
-
-Get all traces in a tracking result. Optionally filter based on minimum lifetime of a blob (the blob must have seen this many measurements).
-"""
-function trace(tr::TrackingResult; minlife=0)
-    blobs = allblobs(tr)
-    filter!(b->lifetime(b)>=minlife, blobs)
-    trace.(blobs)
-end
-
-function tracem(tr::TrackingResult; minlife=0)
-    blobs = allblobs(tr)
-    filter!(b->lifetime(b)>=minlife, blobs)
-    tracem.(blobs)
-end
 
 struct KalmanParams
     σw::Float64
     σe::Float64
 end
+
+Base.Broadcast.broadcastable(b::KalmanParams) = Ref(b)
 
 """
     BlobTracker{T <: AbstractCorrespondence}
@@ -101,7 +71,7 @@ Base.@kwdef mutable struct BlobTracker{T<:AbstractCorrespondence}
 end
 
 """
-    BlobTracker(; sizes, σw, σe)
+    BlobTracker(sizes, σw, σe; kwargs...)
 
 Helper constructor that accepts keyword arguments for the `KalmanParams`
 
@@ -109,8 +79,8 @@ Helper constructor that accepts keyword arguments for the `KalmanParams`
 - `σw`: Dynamics standard deviation
 - `σe`: Measurement standard deviation
 """
-function BlobTracker(;σw, σe, kwargs...)
-    BlobTracker(;params = KalmanParams(σw, σe), kwargs...)
+function BlobTracker(sizes, σw, σe; kwargs...)
+    BlobTracker(;sizes = sizes, params = KalmanParams(σw, σe), kwargs...)
 end
 
 Base.Broadcast.broadcastable(b::BlobTracker) = Ref(b)
@@ -156,22 +126,6 @@ lifetime(b) = findlast(c->c != OOB, b.tracem)
 
 
 Base.CartesianIndex(blob::Blob) = CartesianIndex((round.(Int,blob.kf.x[1:2])...,))
-
-"""
-    dist(blob, c)
-
-Measure the distance between a blob and a coordinate `c` using the Mahalanobis distance induced the the blobs measurement covariance
-"""
-function dist(blob, c)
-    k = blob.kf
-    d = Mahalanobis(inv(k.C*covariance(k)*k.C'))
-    v1 = SVector(c.I)
-    v2 = SVector(k.x[1], k.x[2])
-    d(v1,v2)
-    # sqrt((c[1]-blob.kf.x[1])^2 + (c[2]-blob.kf.x[2])^2)
-end
-
-too_far(c::AbstractCorrespondence,blob,coord) = dist(blob, coord) > c.dist_th
 
 
 function detect_blobs!(ws::Workspace, bt::BlobTracker, img)
