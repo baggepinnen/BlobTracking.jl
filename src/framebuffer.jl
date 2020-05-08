@@ -89,3 +89,25 @@ for f in (diff,)
         end
     end
 end
+
+function Base.collect(f::VideoIO.VideoReader, n=1000)
+    img = read(f)
+    vid = similar(Gray.(img), size(img)..., n)
+    vid[:,:,1] .= img
+    GC.gc()
+     _inner_collectvid(img, vid, f)
+end
+
+
+function _inner_collectvid(img, vid, f)
+    for i = 2:size(vid,3)
+        if eof(f)
+            vid = vid[:,:,1:i-1]
+            break
+        end
+        read!(f, img)
+        vid[:,:,i] .= Gray.(img)
+    end
+    GC.gc()
+    vid
+end

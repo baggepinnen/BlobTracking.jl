@@ -35,7 +35,7 @@ function showblobs(img::AbstractMatrix{T},result,m;rad=8, recorder=nothing, disp
     # img = copy(img)
     display === nothing && recorder === nothing && return
     if ignoreempty
-        isempty(result.blobs) && isempty(m.coordinates) && return
+        isempty(result.blobs) && isempty(m) && return
     end
     blobs = result.blobs
     foreach(blobs) do blob
@@ -46,15 +46,20 @@ function showblobs(img::AbstractMatrix{T},result,m;rad=8, recorder=nothing, disp
         mcoord == OOB && return
         draw!(img, ImageDraw.LineSegment(blobcoord, mcoord))
     end
-    foreach(enumerate(m.coordinates)) do (ci,coord)
-        c = RGB{eltype(T)}(1.,0.,0.) # ci ∈ newcoordinds ? RGB{T}(0,1,0) : RGB{T}(1,0,0)
-        draw!(img, ImageDraw.CirclePointRadius(coord, rad/2), c)
-    end
+    showmeas!(img,m,rad)
     record(img, recorder)
     if display !== nothing
         display(img)
     end
     img
+end
+
+showmeas!(img,m,rad) = showmeas!(img,m[1],rad)
+function showmeas!(img::AbstractMatrix{T},m::Measurement,rad) where T
+    foreach(enumerate(m.coordinates)) do (ci,coord)
+        c = RGB{eltype(T)}(1.,0.,0.) # ci ∈ newcoordinds ? RGB{T}(0,1,0) : RGB{T}(1,0,0)
+        draw!(img, ImageDraw.CirclePointRadius(coord, rad/2), c)
+    end
 end
 
 record(_, ::Nothing) = nothing

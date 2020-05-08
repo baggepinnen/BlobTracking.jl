@@ -34,6 +34,8 @@ struct Measurement
     assi
 end
 
+Base.isempty(m::Measurement) = isempty(m.coordinates)
+
 const OOB = CartesianIndex(0,0)
 @inline to_static(a::Number) = a
 @inline to_static(a::AbstractMatrix) = SMatrix{size(a)...}(a)

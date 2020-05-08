@@ -51,7 +51,7 @@ Assigns blobs to measurement by approximately integrating over the posterior dis
 - `num_samples::Int = 20` number of Monte Carlo samples to draw. The inner assignment routine will be called this many times so it can get expensive to set this too high.
 """
 Base.@kwdef struct MCCorrespondence{T<:AbstractCorrespondence} <: AbstractCorrespondence
-    inner::T = HungarianCorrespondence()
+    inner::T = HungarianCorrespondence(dist_th=5)
     num_samples::Int = 20
 end
 dist_th(c::MCCorrespondence) = dist_th(c.inner)
