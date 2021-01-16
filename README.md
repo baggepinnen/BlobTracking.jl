@@ -1,7 +1,6 @@
 # BlobTracking
 
-[![Build Status](https://travis-ci.org/baggepinnen/BlobTracking.jl.svg?branch=master)](https://travis-ci.org/baggepinnen/BlobTracking.jl)
-[![PkgEval](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/B/BlobTracking.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
+[![Build Status](https://github.com/baggepinnen/BlobTracking.jl/workflows/CI/badge.svg)](https://github.com/baggepinnen/BlobTracking.jl/actions)
 [![Codecov](https://codecov.io/gh/baggepinnen/BlobTracking.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/BlobTracking.jl)
 
 
