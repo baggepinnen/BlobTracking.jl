@@ -10,14 +10,21 @@ Represents a blob. Internally stores a Kalman filter, a counter that is incremen
 
 This type supports `location, trace, tracem, lifetime, draw!`
 """
-Base.@kwdef mutable struct Blob
+mutable struct Blob
     kf
-    counter::Float64 = 0
-    trace::Trace = CartesianIndex{2}[]
-    tracem::Trace = CartesianIndex{2}[]
+    counter::Float64
+    trace::Trace
+    tracem::Trace
 end
 
 Base.Broadcast.broadcastable(b::Blob) = Ref(b)
+
+function Blob(kf = KalmanParams(1,1);
+                counter::Float64 = 0.0,
+                trace::Trace = CartesianIndex{2}[],
+                tracem::Trace = CartesianIndex{2}[])
+    Blob(kf, counter, trace, tracem)
+end
 
 Blob() = Blob(KalmanParams(1,1), CartesianIndex(1,1))
 
@@ -111,7 +118,7 @@ function Blob(params::KalmanParams,coord::CartesianIndex)
     kf = KalmanFilter(A,B,C,0,Rw(params),Re(params),MvNormal(10Rw(params)))
     kf.x[1] = coord[1]
     kf.x[2] = coord[2]
-    Blob(kf=kf, trace=[coord], tracem=[coord])
+    Blob(kf, trace=[coord], tracem=[coord])
 end
 
 """

@@ -62,13 +62,14 @@ Notice how the tree contours are still present in this image? This is okay since
 ### Run tracking
 We now create the `BlobTracker` and run the tracking. If we don't know an appropriate value for the `sizes` vector that determines the size scales of the blobs, we may call the function `tune_sizes` to get a small GUI with a slider to help us out (works in Juno and IJulia). The length of `sizes` has a large impact on the time it takes to process each frame since the majority of the processing time is taken up by the blob detection.
 ```julia
-bt = BlobTracker(sizes=3:3,
+bt = BlobTracker(3:3, #sizes 
+                2.0, # σw Dynamics noise std.
+                10.0,  # σe Measurement noise std. (pixels)
                 mask=mask,
                 preprocessor = preprocessor,
                 amplitude_th = 0.05,
                 correspondence = HungarianCorrespondence(p=1.0, dist_th=2), # dist_th is the number of sigmas away from a predicted location a measurement is accepted.
-                σw = 2.0, # Dynamics noise std.
-                σe = 10.0)  # Measurement noise std. (pixels)
+)
 tune_sizes(bt, img)
 
 result = track_blobs(bt, vid,
