@@ -19,13 +19,6 @@ end
 
 Base.Broadcast.broadcastable(b::Blob) = Ref(b)
 
-function Blob(kf = KalmanParams(1,1);
-                counter::Float64 = 0.0,
-                trace::Trace = CartesianIndex{2}[],
-                tracem::Trace = CartesianIndex{2}[])
-    Blob(kf, counter, trace, tracem)
-end
-
 Blob() = Blob(KalmanParams(1,1), CartesianIndex(1,1))
 
 """
@@ -118,7 +111,7 @@ function Blob(params::KalmanParams,coord::CartesianIndex)
     kf = KalmanFilter(A,B,C,0,Rw(params),Re(params),MvNormal(10Rw(params)))
     kf.x[1] = coord[1]
     kf.x[2] = coord[2]
-    Blob(kf, trace=[coord], tracem=[coord])
+    Blob(kf, 0.0, [coord], [coord])
 end
 
 """
