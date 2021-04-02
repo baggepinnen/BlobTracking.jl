@@ -11,11 +11,14 @@ Base.@kwdef mutable struct Recorder
     filename = "trackingresult.mp4"
     framerate = 30
     encoder = nothing
-    saveio = Base.open("temp.stream","w")
     index::Int = 1
 end
 
-Recorder(img;kwargs...) = Recorder(;encoder=prepareencoder(img, framerate=framerate, AVCodecContextProperties=[:priv_data => ("crf"=>"22","preset"=>"medium")]), kwargs...)
+function Recorder(img; kwargs...)
+    encoder_options = (crf=22, preset="medium")
+    filename = "trackingresult.mp4"
+    Recorder(;encoder=open_video_out(filename, img; framerate=framerate, encoder_options=encoder_options), kwargs...)
+end
 
 
 """
@@ -62,17 +65,16 @@ record(_, ::Nothing) = nothing
 function record(img, recorder)
     r = recorder
     if r.encoder === nothing
-        r.encoder=prepareencoder(img, framerate=r.framerate, AVCodecContextProperties=[:priv_data => ("crf"=>"22","preset"=>"medium")])
+        encoder_options = (crf=22, preset="medium")
+        r.encoder = open_video_out(recorder.filename, img, framerate=r.framerate, encoder_options=encoder_options)
     end
-    appendencode!(r.encoder, r.saveio, img, r.index)
+    VideoIO.write(r.encoder, img, r.index)
     r.index += 1
 end
 
 Base.finalize(::Nothing) = nothing
 function Base.finalize(r::Recorder)
-    finishencode!(r.encoder, r.saveio)
-    close(r.saveio)
-    mux("temp.stream",r.filename,r.framerate)
+    close_video_out!(r.encoder)
 end
 
 ImageDraw.draw!(img,b::Images.BlobLoG;kwargs...) = draw!(img,location(b);kwargs...)
