@@ -21,7 +21,7 @@ VideoIO = "d6d074c3-1acf-5d4c-9a43-ef38773959a2"
 
 [compat]
 Distances = "0.8.2, 0.9, 0.10"
-Distributions = "0.22.0, 0.23, 0.24"
+Distributions = "0.22.0, 0.23, 0.24, 0.25"
 Hungarian = "0.5.0, 0.6"
 ImageDraw = "0.2.2"
 ImageFiltering = "0.6.9"
