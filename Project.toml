@@ -1,7 +1,7 @@
 name = "BlobTracking"
 uuid = "738e0a8b-9125-4fc4-8d4f-3a5b1a21603b"
 authors = ["Fredrik Bagge Carlson"]
-version = "0.1.6"
+version = "0.1.7"
 
 [deps]
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
