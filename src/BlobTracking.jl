@@ -100,7 +100,7 @@ Correct the state of the blobs by incorporating the measurement in the Kalman fi
 function LowLevelParticleFilters.correct!(blobs::Vector, measurement::Measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
-            ll = correct!(blobs[bi].kf,SVector(measurement.coordinates[ass].I))
+            ll = correct!(blobs[bi].kf, 0, SVector(measurement.coordinates[ass].I))
             push!(blobs[bi].tracem, measurement.coordinates[ass])
         else
             push!(blobs[bi].tracem, OOB)
