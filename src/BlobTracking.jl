@@ -100,7 +100,7 @@ Correct the state of the blobs by incorporating the measurement in the Kalman fi
 function LowLevelParticleFilters.correct!(blobs::Vector, measurement::Measurement)
     for (bi, ass) in enumerate(measurement.assi)
         if ass != 0
-            ll = correct!(blobs[bi].kf,SVector(measurement.coordinates[ass].I))
+            ll = correct!(blobs[bi].kf, 0, SVector(measurement.coordinates[ass].I))
             push!(blobs[bi].tracem, measurement.coordinates[ass])
         else
             push!(blobs[bi].tracem, OOB)
@@ -121,7 +121,7 @@ function LowLevelParticleFilters.correct!(blobs::Vector, measurements::Vector{Me
             blob = blobs[bi]
             if ass != 0
                 blob.kf.R2 .*= N # QUESTION N or N^2?
-                ll = correct!(blob.kf,SVector(measurement.coordinates[ass].I))
+                ll = correct!(blob.kf, 0, SVector(measurement.coordinates[ass].I))
                 blob.kf.R2 .= R2
                 push!(blob.tracem, measurement.coordinates[ass])
             else
