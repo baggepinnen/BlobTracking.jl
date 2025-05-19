@@ -121,7 +121,7 @@ function LowLevelParticleFilters.correct!(blobs::Vector, measurements::Vector{Me
             blob = blobs[bi]
             if ass != 0
                 blob.kf.R2 .*= N # QUESTION N or N^2?
-                ll = correct!(blob.kf,SVector(measurement.coordinates[ass].I))
+                ll = correct!(blob.kf, 0, SVector(measurement.coordinates[ass].I))
                 blob.kf.R2 .= R2
                 push!(blob.tracem, measurement.coordinates[ass])
             else
