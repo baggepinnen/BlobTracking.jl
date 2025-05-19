@@ -89,7 +89,7 @@ Base.Broadcast.broadcastable(b::BlobTracker) = Ref(b)
 
 dt = 1
 A = @SMatrix [1. 0 dt 0; 0 1 0 dt; 0 0 1 0; 0 0 0 1] #state update matrice
-B = @SVector [(dt^2/2), (dt^2/2), dt, dt]
+B = @SMatrix [(dt^2/2); (dt^2/2); dt; dt]
 C = @SMatrix [1. 0 0 0; 0 1 0 0]
 
 Re(σe) = diagm([σe^2, σe^2])
